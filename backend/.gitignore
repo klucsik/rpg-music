@@ -1,0 +1,17 @@
+node_modules/
+.env
+data/
+*.db
+*.db-journal
+*.log
+.DS_Store
+
+# Audio files (keep directory structure)
+test-music/**/*.mp3
+test-music/**/*.flac
+test-music/**/*.ogg
+test-music/**/*.m4a
+test-music/**/*.aac
+test-music/**/*.wav
+test-music/**/*.opus
+!test-music/**/README.md

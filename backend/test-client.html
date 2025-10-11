@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG Music - WebSocket Test Client</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+            background: #2a2a2a;
+            border-left: 4px solid #4CAF50;
+        }
+        .status.disconnected {
+            border-left-color: #f44336;
+        }
+        .player {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .now-playing {
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #333;
+            border-radius: 5px;
+        }
+        .track-info {
+            margin: 5px 0;
+        }
+        .controls {
+            margin-top: 15px;
+        }
+        audio {
+            width: 100%;
+            margin: 15px 0;
+        }
+        .log {
+            background: #1a1a1a;
+            border: 1px solid #444;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        .log-entry.error {
+            border-left-color: #f44336;
+            color: #ff6b6b;
+        }
+        .log-entry.info {
+            border-left-color: #2196F3;
+            color: #64B5F6;
+        }
+        .log-entry.sync {
+            border-left-color: #FFC107;
+            color: #FFD54F;
+        }
+        .position-display {
+            font-size: 1.5em;
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 5px;
+        }
+        .drift-info {
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 RPG Music - WebSocket Sync Test</h1>
+    
+    <div class="status" id="connectionStatus">
+        <strong>Status:</strong> <span id="statusText">Connecting...</span><br>
+        <strong>Client ID:</strong> <span id="clientId">-</span><br>
+        <strong>Server Time Offset:</strong> <span id="timeOffset">Calculating...</span>
+    </div>
+
+    <div class="player">
+        <div class="now-playing">
+            <strong>Now Playing:</strong>
+            <div class="track-info">
+                <strong id="trackTitle">No track loaded</strong><br>
+                <span id="trackArtist"></span>
+            </div>
+        </div>
+
+        <div class="position-display">
+            <span id="currentPosition">0:00</span> / <span id="duration">0:00</span>
+        </div>
+
+        <audio id="audioPlayer" controls></audio>
+
+        <div class="drift-info">
+            Expected Position: <span id="expectedPosition">0.0</span>s | 
+            Actual Position: <span id="actualPosition">0.0</span>s | 
+            Drift: <span id="drift">0.0</span>s
+        </div>
+    </div>
+
+    <div class="log" id="eventLog">
+        <div class="log-entry info">Client started. Connecting to server...</div>
+    </div>
+
+    <script>
+        // Configuration
+        const SERVER_URL = 'http://localhost:3000';
+        let socket = null;
+        let serverTimeOffset = 0;
+        let currentTrack = null;
+        let scheduledPlayTime = null;
+
+        // DOM elements
+        const statusEl = document.getElementById('connectionStatus');
+        const statusTextEl = document.getElementById('statusText');
+        const clientIdEl = document.getElementById('clientId');
+        const timeOffsetEl = document.getElementById('timeOffset');
+        const trackTitleEl = document.getElementById('trackTitle');
+        const trackArtistEl = document.getElementById('trackArtist');
+        const currentPositionEl = document.getElementById('currentPosition');
+        const durationEl = document.getElementById('duration');
+        const expectedPositionEl = document.getElementById('expectedPosition');
+        const actualPositionEl = document.getElementById('actualPosition');
+        const driftEl = document.getElementById('drift');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const eventLog = document.getElementById('eventLog');
+
+        // Logging function
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            eventLog.appendChild(entry);
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        // Format time
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Calculate server time offset
+        function calculateTimeOffset(serverTimestamp) {
+            const clientTime = Date.now();
+            serverTimeOffset = serverTimestamp - clientTime;
+            timeOffsetEl.textContent = `${serverTimeOffset}ms`;
+            log(`Time offset calculated: ${serverTimeOffset}ms`, 'sync');
+        }
+
+        // Get server time
+        function getServerTime() {
+            return Date.now() + serverTimeOffset;
+        }
+
+        // Update position display
+        function updatePositionDisplay() {
+            if (audioPlayer.duration) {
+                currentPositionEl.textContent = formatTime(audioPlayer.currentTime);
+                durationEl.textContent = formatTime(audioPlayer.duration);
+                actualPositionEl.textContent = audioPlayer.currentTime.toFixed(2);
+            }
+        }
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            socket = io(SERVER_URL);
+
+            socket.on('connect', () => {
+                log('Connected to server', 'info');
+                statusEl.className = 'status';
+                statusTextEl.textContent = 'Connected';
+                clientIdEl.textContent = socket.id;
+                
+                // Request current state
+                socket.emit('request_state');
+            });
+
+            socket.on('disconnect', (reason) => {
+                log(`Disconnected: ${reason}`, 'error');
+                statusEl.className = 'status disconnected';
+                statusTextEl.textContent = 'Disconnected';
+            });
+
+            socket.on('state_sync', (data) => {
+                log('Received state sync', 'sync');
+                calculateTimeOffset(data.serverTime);
+                
+                if (data.currentTrack) {
+                    currentTrack = data.currentTrack;
+                    trackTitleEl.textContent = data.currentTrack.title;
+                    trackArtistEl.textContent = data.currentTrack.artist || 'Unknown Artist';
+                    
+                    // Load audio if not already loaded
+                    if (audioPlayer.src !== `${SERVER_URL}/audio/${data.currentTrack.id}`) {
+                        audioPlayer.src = `${SERVER_URL}/audio/${data.currentTrack.id}`;
+                        log(`Loaded track: ${data.currentTrack.title}`, 'info');
+                    }
+                    
+                    // Sync playback state
+                    if (data.playbackState === 'playing') {
+                        audioPlayer.currentTime = data.position;
+                        audioPlayer.play().catch(e => log(`Autoplay blocked: ${e.message}`, 'error'));
+                    } else if (data.playbackState === 'paused') {
+                        audioPlayer.currentTime = data.position;
+                        audioPlayer.pause();
+                    }
+                }
+            });
+
+            socket.on('play_track', (data) => {
+                log(`Play track: ${data.title}`, 'sync');
+                calculateTimeOffset(data.serverTimestamp);
+                
+                currentTrack = data;
+                trackTitleEl.textContent = data.title;
+                trackArtistEl.textContent = data.artist || 'Unknown Artist';
+                
+                // Load audio
+                audioPlayer.src = `${SERVER_URL}${data.streamUrl}`;
+                audioPlayer.currentTime = data.startPosition;
+                
+                // Schedule playback
+                const serverTime = getServerTime();
+                const timeUntilPlay = data.scheduledStartTime - serverTime;
+                
+                log(`Scheduled to play in ${timeUntilPlay}ms`, 'sync');
+                
+                if (timeUntilPlay > 0) {
+                    setTimeout(() => {
+                        audioPlayer.play().catch(e => log(`Play failed: ${e.message}`, 'error'));
+                    }, timeUntilPlay);
+                } else {
+                    // Already late, play immediately
+                    audioPlayer.play().catch(e => log(`Play failed: ${e.message}`, 'error'));
+                }
+            });
+
+            socket.on('pause', (data) => {
+                log(`Pause at ${data.position.toFixed(2)}s`, 'sync');
+                calculateTimeOffset(data.serverTimestamp);
+                audioPlayer.pause();
+                audioPlayer.currentTime = data.position;
+            });
+
+            socket.on('resume', (data) => {
+                log(`Resume from ${data.position.toFixed(2)}s`, 'sync');
+                calculateTimeOffset(data.serverTimestamp);
+                
+                audioPlayer.currentTime = data.position;
+                
+                const serverTime = getServerTime();
+                const timeUntilPlay = data.scheduledStartTime - serverTime;
+                
+                if (timeUntilPlay > 0) {
+                    setTimeout(() => {
+                        audioPlayer.play().catch(e => log(`Play failed: ${e.message}`, 'error'));
+                    }, timeUntilPlay);
+                } else {
+                    audioPlayer.play().catch(e => log(`Play failed: ${e.message}`, 'error'));
+                }
+            });
+
+            socket.on('stop', (data) => {
+                log('Stop playback', 'sync');
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+            });
+
+            socket.on('seek', (data) => {
+                log(`Seek to ${data.position.toFixed(2)}s`, 'sync');
+                calculateTimeOffset(data.serverTimestamp);
+                audioPlayer.currentTime = data.position;
+                
+                if (data.scheduledStartTime) {
+                    const serverTime = getServerTime();
+                    const timeUntilPlay = data.scheduledStartTime - serverTime;
+                    
+                    if (timeUntilPlay > 0) {
+                        setTimeout(() => {
+                            audioPlayer.play().catch(e => log(`Play failed: ${e.message}`, 'error'));
+                        }, timeUntilPlay);
+                    }
+                }
+            });
+
+            socket.on('volume_change', (data) => {
+                log(`Volume changed to ${(data.volume * 100).toFixed(0)}%`, 'sync');
+                audioPlayer.volume = data.volume;
+            });
+
+            socket.on('position_check', (data) => {
+                calculateTimeOffset(data.serverTimestamp);
+                
+                const expectedPos = data.expectedPosition;
+                const actualPos = audioPlayer.currentTime;
+                const drift = Math.abs(expectedPos - actualPos);
+                
+                expectedPositionEl.textContent = expectedPos.toFixed(2);
+                driftEl.textContent = drift.toFixed(2);
+                
+                log(`Position check - Drift: ${drift.toFixed(2)}s`, drift > data.maxDrift ? 'error' : 'sync');
+                
+                // Correct if drift exceeds threshold
+                if (drift > data.maxDrift && !audioPlayer.paused) {
+                    log(`Correcting drift: ${drift.toFixed(2)}s > ${data.maxDrift}s`, 'error');
+                    audioPlayer.currentTime = expectedPos;
+                }
+            });
+        }
+
+        // Audio player event listeners
+        audioPlayer.addEventListener('timeupdate', updatePositionDisplay);
+        audioPlayer.addEventListener('play', () => log('Audio playing', 'info'));
+        audioPlayer.addEventListener('pause', () => log('Audio paused', 'info'));
+        audioPlayer.addEventListener('error', (e) => log(`Audio error: ${e.message}`, 'error'));
+
+        // Initialize
+        initWebSocket();
+        log('WebSocket client initialized', 'info');
+    </script>
+</body>
+</html>
