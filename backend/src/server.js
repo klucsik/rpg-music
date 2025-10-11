@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import config from './config/config.js';
 import logger from './utils/logger.js';
@@ -11,6 +13,9 @@ import scannerRoutes from './routes/scanner.js';
 import playbackRoutes from './routes/playback.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Express app
 const app = express();
@@ -42,35 +47,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+// API Routes (must be before static files)
 app.use('/api', systemRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/audio', audioRoutes);
 app.use('/api/scan', scannerRoutes);
 app.use('/api/playback', playbackRoutes);
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    name: 'RPG Music Streaming Server',
-    version: '1.0.0',
-    status: 'running',
-    endpoints: {
-      health: '/api/health',
-      config: '/api/config',
-      stats: '/api/stats',
-      tracks: '/api/tracks',
-      audio: '/audio/:trackId',
-      scan: '/api/scan',
-      scanStatus: '/api/scan/status',
-      playback: '/api/playback',
-      websocket: '/socket.io',
+// Serve static files from frontend build
+const publicPath = path.join(__dirname, '../public');
+app.use(express.static(publicPath));
+
+// Serve index.html for all non-API routes (SPA fallback)
+app.get('*', (req, res, next) => {
+  // Skip if it's an API route or socket.io
+  if (req.url.startsWith('/api') || req.url.startsWith('/audio') || req.url.startsWith('/socket.io')) {
+    return next();
+  }
+  
+  const indexPath = path.join(publicPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      logger.warn({ error: err }, 'Failed to serve index.html - frontend may not be built yet');
+      res.status(200).json({
+        name: 'RPG Music Streaming Server',
+        version: '1.0.0',
+        status: 'running',
+        message: 'Frontend not built. Run "npm run build" in the frontend directory.',
+        endpoints: {
+          health: '/api/health',
+          config: '/api/config',
+          stats: '/api/stats',
+          tracks: '/api/tracks',
+          audio: '/audio/:trackId',
+          scan: '/api/scan',
+          scanStatus: '/api/scan/status',
+          playback: '/api/playback',
+          websocket: '/socket.io',
+        }
+      });
     }
   });
 });
 
-// 404 handler
-app.use((req, res) => {
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
   res.status(404).json({
     error: 'Not Found',
     path: req.url,
