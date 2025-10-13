@@ -21,45 +21,14 @@
         :key="folder.id"
         :folder="folder"
         :selected-folder-id="selectedFolderId"
+        :folder-tracks="selectedFolder?.tracks || []"
         @select="selectFolder"
         @edit="editFolder"
         @delete="confirmDelete"
         @add-track="openTrackSelector"
+        @drop-track="handleDropTrack"
+        @remove-track="handleRemoveTrack"
       />
-    </div>
-
-    <!-- Selected Folder Tracks -->
-    <div v-if="selectedFolder" class="folder-tracks">
-      <div class="tracks-header">
-        <h4>{{ selectedFolder.name }}</h4>
-        <button @click="openTrackSelector(selectedFolder)" class="add-track-btn">
-          ➕ Add Tracks
-        </button>
-      </div>
-      
-      <div v-if="selectedFolder.tracks && selectedFolder.tracks.length > 0" class="tracks-list">
-        <div
-          v-for="track in selectedFolder.tracks"
-          :key="track.id"
-          class="track-item"
-        >
-          <span class="track-icon">🎵</span>
-          <div class="track-info">
-            <div class="track-title">{{ track.title }}</div>
-            <div class="track-meta">{{ track.artist || 'Unknown' }}</div>
-          </div>
-          <button
-            @click="removeTrackFromFolder(track.id)"
-            class="remove-btn"
-            title="Remove from folder"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-      <div v-else class="no-tracks">
-        No tracks in this folder yet.
-      </div>
     </div>
 
     <!-- Create/Edit Dialog -->
@@ -163,6 +132,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Toast Notification -->
+    <Toast
+      :message="toastMessage"
+      :type="toastType"
+      :show="showToast"
+      @hide="showToast = false"
+    />
   </div>
 </template>
 
@@ -170,10 +147,11 @@
 import { ref, computed, onMounted } from 'vue';
 import api from '../services/api';
 import FolderNode from './FolderNode.vue';
+import Toast from './Toast.vue';
 
 export default {
   name: 'FolderManager',
-  components: { FolderNode },
+  components: { FolderNode, Toast },
   setup() {
     const folders = ref([]);
     const flatFolders = ref([]);
@@ -194,6 +172,17 @@ export default {
     const trackSelectorFolder = ref(null);
     const availableTracks = ref([]);
     const trackSearchQuery = ref('');
+
+    // Toast notification
+    const showToast = ref(false);
+    const toastMessage = ref('');
+    const toastType = ref('info');
+
+    const showNotification = (message, type = 'info') => {
+      toastMessage.value = message;
+      toastType.value = type;
+      showToast.value = true;
+    };
 
     // Build folder path for display
     const buildFolderPath = (folder, flatList) => {
@@ -262,9 +251,10 @@ export default {
         );
         closeDialogs();
         await loadFolders();
+        showNotification('Folder created successfully', 'success');
       } catch (err) {
         console.error('Failed to create folder:', err);
-        alert('Failed to create folder');
+        showNotification('Failed to create folder', 'error');
       }
     };
 
@@ -295,9 +285,10 @@ export default {
         if (wasSelected) {
           await selectFolder({ id: folderId });
         }
+        showNotification('Folder updated successfully', 'success');
       } catch (err) {
         console.error('Failed to update folder:', err);
-        alert('Failed to update folder');
+        showNotification('Failed to update folder', 'error');
       }
     };
 
@@ -315,9 +306,10 @@ export default {
           selectedFolderId.value = null;
         }
         await loadFolders();
+        showNotification('Folder deleted successfully', 'success');
       } catch (err) {
         console.error('Failed to delete folder:', err);
-        alert(err.message || 'Failed to delete folder');
+        showNotification(err.message || 'Failed to delete folder', 'error');
       }
     };
 
@@ -355,9 +347,14 @@ export default {
         if (selectedFolderId.value === trackSelectorFolder.value.id) {
           await selectFolder(trackSelectorFolder.value);
         }
+        showNotification('Track added to folder', 'success');
       } catch (err) {
         console.error('Failed to add track to folder:', err);
-        alert(err.message || 'Failed to add track');
+        if (err.message?.includes('already exists')) {
+          showNotification('Track is already in this folder', 'warning');
+        } else {
+          showNotification(err.message || 'Failed to add track', 'error');
+        }
       }
     };
 
@@ -367,6 +364,36 @@ export default {
         await selectFolder({ id: selectedFolder.value.id });
       } catch (err) {
         console.error('Failed to remove track:', err);
+      }
+    };
+
+    const handleDropTrack = async ({ trackId, folderId, folderName }) => {
+      try {
+        await api.addTrackToFolder(folderId, trackId);
+        showNotification(`Track added to "${folderName}"`, 'success');
+        
+        // Refresh selected folder if it's the one we dropped into
+        if (selectedFolderId.value === folderId) {
+          await selectFolder({ id: folderId });
+        }
+      } catch (err) {
+        console.error('Failed to add track to folder:', err);
+        if (err.message?.includes('already exists')) {
+          showNotification(`Track is already in "${folderName}"`, 'warning');
+        } else {
+          showNotification('Failed to add track to folder', 'error');
+        }
+      }
+    };
+
+    const handleRemoveTrack = async ({ trackId, folderId }) => {
+      try {
+        await api.removeTrackFromFolder(folderId, trackId);
+        await selectFolder({ id: folderId });
+        showNotification('Track removed from folder', 'success');
+      } catch (err) {
+        console.error('Failed to remove track:', err);
+        showNotification('Failed to remove track from folder', 'error');
       }
     };
 
@@ -405,6 +432,9 @@ export default {
       trackSelectorFolder,
       availableTracks,
       trackSearchQuery,
+      showToast,
+      toastMessage,
+      toastType,
       selectFolder,
       createFolder,
       editFolder,
@@ -415,6 +445,8 @@ export default {
       searchTracks,
       addTrackToSelectedFolder,
       removeTrackFromFolder,
+      handleDropTrack,
+      handleRemoveTrack,
       closeDialogs,
       closeTrackSelector,
     };
@@ -427,7 +459,10 @@ export default {
   background: #2a2a2a;
   border-radius: 12px;
   padding: 20px;
-  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .manager-header {
@@ -459,6 +494,9 @@ export default {
 }
 
 .folder-tree {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
   margin-bottom: 20px;
 }
 
@@ -466,6 +504,7 @@ export default {
   background: #1a1a1a;
   border-radius: 8px;
   padding: 15px;
+  margin-top: auto;
 }
 
 .tracks-header {

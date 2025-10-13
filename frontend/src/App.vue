@@ -9,21 +9,33 @@
     </header>
 
     <main class="app-main">
-      <AudioPlayer 
-        :current-track-id="currentTrackId"
-        :has-next="trackListRef?.hasNext() || false"
-        :has-previous="trackListRef?.hasPrevious() || false"
-        @next-track="playNextTrack"
-        @previous-track="playPreviousTrack"
-      />
-      
-      <TrackList
-        ref="trackListRef"
-        :current-track-id="currentTrackId"
-        @play-track="onPlayTrack"
-      />
-      
-      <FolderManager />
+      <!-- Player and Playlist Section -->
+      <section class="player-section">
+        <AudioPlayer 
+          :current-track-id="currentTrackId"
+          :has-next="trackListRef?.hasNext() || false"
+          :has-previous="trackListRef?.hasPrevious() || false"
+          @next-track="playNextTrack"
+          @previous-track="playPreviousTrack"
+        />
+      </section>
+
+      <!-- Two Column Layout -->
+      <section class="content-layout">
+        <!-- Left Side: Music Library -->
+        <div class="library-column">
+          <TrackList
+            ref="trackListRef"
+            :current-track-id="currentTrackId"
+            @play-track="onPlayTrack"
+          />
+        </div>
+
+        <!-- Right Side: Folder Management -->
+        <div class="folders-column">
+          <FolderManager />
+        </div>
+      </section>
     </main>
 
     <footer class="app-footer">
@@ -194,10 +206,38 @@ body {
 
 .app-main {
   flex: 1;
-  max-width: 1200px;
+  display: flex;
+  flex-direction: column;
+  max-width: 1600px;
   width: 100%;
   margin: 0 auto;
   padding: 20px;
+  gap: 20px;
+}
+
+.player-section {
+  width: 100%;
+}
+
+.content-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.library-column,
+.folders-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .content-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-footer {

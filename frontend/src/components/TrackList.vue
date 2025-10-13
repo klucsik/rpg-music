@@ -26,9 +26,13 @@
         v-for="track in tracks"
         :key="track.id"
         class="track-item"
-        :class="{ playing: isCurrentTrack(track.id) }"
+        :class="{ playing: isCurrentTrack(track.id), dragging: draggingTrackId === track.id }"
+        draggable="true"
+        @dragstart="onDragStart($event, track)"
+        @dragend="onDragEnd"
         @click="playTrack(track)"
       >
+        <div class="drag-handle">⋮⋮</div>
         <div class="track-icon">
           <span v-if="isCurrentTrack(track.id)">▶️</span>
           <span v-else>🎵</span>
@@ -84,6 +88,7 @@ export default {
     const searchQuery = ref('');
     const loading = ref(false);
     const error = ref(null);
+    const draggingTrackId = ref(null);
     let searchTimeout = null;
 
     const formatDuration = (seconds) => {
@@ -166,6 +171,20 @@ export default {
       return currentIndex > 0;
     };
 
+    const onDragStart = (event, track) => {
+      draggingTrackId.value = track.id;
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/json', JSON.stringify({
+        trackId: track.id,
+        title: track.title,
+        artist: track.artist,
+      }));
+    };
+
+    const onDragEnd = () => {
+      draggingTrackId.value = null;
+    };
+
     onMounted(() => {
       loadTracks();
     });
@@ -176,6 +195,7 @@ export default {
       searchQuery,
       loading,
       error,
+      draggingTrackId,
       formatDuration,
       isCurrentTrack,
       loadPage,
@@ -185,6 +205,8 @@ export default {
       playPreviousTrack,
       hasNext,
       hasPrevious,
+      onDragStart,
+      onDragEnd,
     };
   },
 };
@@ -195,6 +217,10 @@ export default {
   background: #2a2a2a;
   border-radius: 12px;
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 }
 
 .list-header {
@@ -244,14 +270,15 @@ export default {
 }
 
 .tracks {
-  max-height: 500px;
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .track-item {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
   padding: 12px;
   margin-bottom: 8px;
   background: #1a1a1a;
@@ -268,6 +295,27 @@ export default {
 .track-item.playing {
   background: #2d4a2e;
   border-left: 4px solid #4CAF50;
+}
+
+.track-item.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
+.drag-handle {
+  color: #666;
+  font-size: 1.2em;
+  cursor: grab;
+  user-select: none;
+  padding: 0 4px;
+}
+
+.track-item:hover .drag-handle {
+  color: #999;
+}
+
+.track-item.dragging .drag-handle {
+  cursor: grabbing;
 }
 
 .track-icon {
