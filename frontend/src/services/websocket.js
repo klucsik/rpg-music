@@ -88,6 +88,11 @@ class WebSocketService {
       this.emit('position_check', data);
     });
 
+    this.socket.on('library_update', (data) => {
+      console.log('Library update received:', data);
+      this.emit('library_update', data);
+    });
+
     return this.socket;
   }
 

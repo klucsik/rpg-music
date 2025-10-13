@@ -70,8 +70,9 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import api from '../services/api';
+import websocket from '../services/websocket';
 
 export default {
   name: 'TrackList',
@@ -185,8 +186,28 @@ export default {
       draggingTrackId.value = null;
     };
 
+    const handleLibraryUpdate = (data) => {
+      console.log('Library update in TrackList:', data);
+      // Reload tracks to show changes
+      const params = {};
+      if (searchQuery.value) {
+        params.search = searchQuery.value;
+      }
+      if (pagination.value) {
+        params.page = pagination.value.page;
+      }
+      loadTracks(params);
+    };
+
     onMounted(() => {
       loadTracks();
+      // Listen for library updates
+      websocket.on('library_update', handleLibraryUpdate);
+    });
+
+    onUnmounted(() => {
+      // Clean up listener
+      websocket.off('library_update', handleLibraryUpdate);
     });
 
     return {

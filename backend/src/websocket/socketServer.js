@@ -104,6 +104,16 @@ export function getClientCount() {
 }
 
 /**
+ * Broadcast library update event to all clients
+ */
+export function broadcastLibraryUpdate(event) {
+  if (io) {
+    io.emit('library_update', event);
+    logger.debug({ event }, 'Broadcast library update');
+  }
+}
+
+/**
  * Close WebSocket server
  */
 export function closeWebSocket() {
@@ -123,5 +133,6 @@ export default {
   getSyncController,
   getConnectedClients,
   getClientCount,
+  broadcastLibraryUpdate,
   closeWebSocket,
 };

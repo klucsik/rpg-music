@@ -14,9 +14,13 @@ import playbackRoutes from './routes/playback.js';
 import folderRoutes from './routes/folders.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
+import FileWatcher from './services/fileWatcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize file watcher
+let fileWatcher = null;
 
 // Initialize Express app
 const app = express();
@@ -146,6 +150,11 @@ async function start() {
     logger.info('Initializing WebSocket server...');
     initWebSocket(httpServer);
     logger.info('WebSocket server ready');
+    
+    // Start file watcher
+    logger.info('Starting file watcher...');
+    fileWatcher = new FileWatcher(config.musicDir);
+    fileWatcher.start();
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
@@ -157,6 +166,11 @@ async function start() {
  */
 async function shutdown() {
   logger.info('Shutting down gracefully...');
+  
+  // Stop file watcher
+  if (fileWatcher) {
+    fileWatcher.stop();
+  }
   
   // Close WebSocket server
   closeWebSocket();

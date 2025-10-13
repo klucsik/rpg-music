@@ -144,10 +144,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import api from '../services/api';
 import FolderNode from './FolderNode.vue';
 import Toast from './Toast.vue';
+import websocket from '../services/websocket';
 
 export default {
   name: 'FolderManager',
@@ -410,8 +411,23 @@ export default {
       trackSearchQuery.value = '';
     };
 
+
+    // Refresh folders on library update (filesystem event)
+    const handleLibraryUpdate = async () => {
+      await loadFolders();
+      // Refresh selected folder if one is selected
+      if (selectedFolderId.value) {
+        await selectFolder({ id: selectedFolderId.value });
+      }
+    };
+
     onMounted(() => {
       loadFolders();
+      websocket.on('library_update', handleLibraryUpdate);
+    });
+
+    onUnmounted(() => {
+      websocket.off('library_update', handleLibraryUpdate);
     });
 
     return {
