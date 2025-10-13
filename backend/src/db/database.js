@@ -298,6 +298,38 @@ export const trackFolderQueries = {
     const stmt = getDb().prepare('DELETE FROM track_folders WHERE track_id = ?');
     return stmt.run(trackId);
   },
+
+  /**
+   * Remove all tracks from a folder
+   */
+  removeAllFromFolder: (folderId) => {
+    const stmt = getDb().prepare('DELETE FROM track_folders WHERE folder_id = ?');
+    return stmt.run(folderId);
+  },
+
+  /**
+   * Get tracks by folder
+   */
+  getTracksByFolder: (folderId) => {
+    const stmt = getDb().prepare(`
+      SELECT t.* FROM tracks t
+      INNER JOIN track_folders tf ON t.id = tf.track_id
+      WHERE tf.folder_id = ?
+      ORDER BY t.title COLLATE NOCASE
+    `);
+    return stmt.all(folderId);
+  },
+
+  /**
+   * Get track-folder relationship
+   */
+  getByTrackAndFolder: (trackId, folderId) => {
+    const stmt = getDb().prepare(`
+      SELECT * FROM track_folders 
+      WHERE track_id = ? AND folder_id = ?
+    `);
+    return stmt.get(trackId, folderId);
+  },
 };
 
 export default {

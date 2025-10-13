@@ -52,8 +52,48 @@ class ApiClient {
     return this.request('/api/folders');
   }
 
+  async getFoldersFlat() {
+    return this.request('/api/folders/flat');
+  }
+
+  async getFolder(id) {
+    return this.request(`/api/folders/${id}`);
+  }
+
+  async createFolder(name, parentId = null, sortOrder = 0) {
+    return this.request('/api/folders', {
+      method: 'POST',
+      body: JSON.stringify({ name, parent_id: parentId, sort_order: sortOrder }),
+    });
+  }
+
+  async updateFolder(id, updates) {
+    return this.request(`/api/folders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteFolder(id) {
+    return this.request(`/api/folders/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addTrackToFolder(folderId, trackId) {
+    return this.request(`/api/folders/${folderId}/tracks/${trackId}`, {
+      method: 'POST',
+    });
+  }
+
+  async removeTrackFromFolder(folderId, trackId) {
+    return this.request(`/api/folders/${folderId}/tracks/${trackId}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getFolderTracks(folderId) {
-    return this.getTracks({ folder_id: folderId });
+    return this.request(`/api/folders/${folderId}/tracks`);
   }
 
   // Playback

@@ -22,6 +22,8 @@
         :current-track-id="currentTrackId"
         @play-track="onPlayTrack"
       />
+      
+      <FolderManager />
     </main>
 
     <footer class="app-footer">
@@ -34,6 +36,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import AudioPlayer from './components/AudioPlayer.vue';
 import TrackList from './components/TrackList.vue';
+import FolderManager from './components/FolderManager.vue';
 import api from './services/api';
 import websocket from './services/websocket';
 
@@ -42,6 +45,7 @@ export default {
   components: {
     AudioPlayer,
     TrackList,
+    FolderManager,
   },
   setup() {
     const currentTrackId = ref(null);
