@@ -30,7 +30,6 @@
         draggable="true"
         @dragstart="onDragStart($event, track)"
         @dragend="onDragEnd"
-        @click="playTrack(track)"
       >
         <div class="drag-handle">⋮⋮</div>
         <div class="track-icon">

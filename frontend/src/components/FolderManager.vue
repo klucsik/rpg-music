@@ -28,6 +28,7 @@
         @add-track="openTrackSelector"
         @drop-track="handleDropTrack"
         @remove-track="handleRemoveTrack"
+        @play-folder="handlePlayFolder"
       />
     </div>
 
@@ -153,7 +154,8 @@ import websocket from '../services/websocket';
 export default {
   name: 'FolderManager',
   components: { FolderNode, Toast },
-  setup() {
+  emits: ['play-folder', 'folders-loaded'],
+  setup(props, { emit }) {
     const folders = ref([]);
     const flatFolders = ref([]);
     const loading = ref(false);
@@ -226,6 +228,9 @@ export default {
         // Also load flat list for parent selector
         const flatResponse = await api.getFoldersFlat();
         flatFolders.value = flatResponse.folders;
+        
+        // Emit folders-loaded event with paths
+        emit('folders-loaded', foldersWithPaths.value);
       } catch (err) {
         error.value = 'Failed to load folders';
         console.error(err);
@@ -398,6 +403,10 @@ export default {
       }
     };
 
+    const handlePlayFolder = (folder) => {
+      emit('play-folder', folder);
+    };
+
     const closeDialogs = () => {
       showCreateDialog.value = false;
       showEditDialog.value = false;
@@ -463,8 +472,10 @@ export default {
       removeTrackFromFolder,
       handleDropTrack,
       handleRemoveTrack,
+      handlePlayFolder,
       closeDialogs,
       closeTrackSelector,
+      loadFolders,
     };
   },
 };

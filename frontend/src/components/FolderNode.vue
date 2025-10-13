@@ -13,6 +13,7 @@
       </span>
       <span class="folder-name">{{ folder.name }}</span>
       <div class="folder-actions">
+        <button @click.stop="$emit('play-folder', folder)" title="Play folder contents">▶️</button>
         <button @click.stop="$emit('add-track', folder)" title="Add tracks">➕</button>
         <button @click.stop="$emit('edit', folder)" title="Edit">✏️</button>
         <button @click.stop="$emit('delete', folder)" title="Delete">🗑️</button>
@@ -61,6 +62,7 @@
         @add-track="$emit('add-track', $event)"
         @drop-track="$emit('drop-track', $event)"
         @remove-track="$emit('remove-track', $event)"
+        @play-folder="$emit('play-folder', $event)"
       />
     </div>
   </div>
@@ -85,7 +87,7 @@ export default {
       default: () => [],
     },
   },
-  emits: ['select', 'edit', 'delete', 'add-track', 'drop-track', 'remove-track'],
+  emits: ['select', 'edit', 'delete', 'add-track', 'drop-track', 'remove-track', 'play-folder'],
   setup(props, { emit }) {
     const isDragOver = ref(false);
     const isDragOverTracks = ref(false);

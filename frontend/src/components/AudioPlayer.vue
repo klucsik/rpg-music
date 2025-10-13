@@ -9,7 +9,7 @@
       <div class="sync-status" :class="{ connected: isConnected, disconnected: !isConnected }">
         <span class="status-dot"></span>
         {{ isConnected ? 'Connected' : 'Disconnected' }}
-        <span v-if="isConnected" class="client-id">{{ clientId }}</span>
+        <span v-if="isConnected" class="client-id"></span>
       </div>
     </div>
 
