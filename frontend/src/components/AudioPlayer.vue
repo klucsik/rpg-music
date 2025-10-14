@@ -1,5 +1,14 @@
 <template>
   <div class="audio-player">
+    <!-- Audio Unlock Overlay -->
+    <div v-if="needsAudioUnlock" class="audio-unlock-overlay" @click="unlockAudio">
+      <div class="unlock-content">
+        <div class="unlock-icon">🔊</div>
+        <h3>Click to Enable Audio</h3>
+        <p>Browser requires user interaction to play audio</p>
+      </div>
+    </div>
+
     <div class="now-playing">
       <div class="track-info">
         <h2 v-if="currentTrack">{{ currentTrack.title }}</h2>
@@ -127,6 +136,8 @@ export default {
     const showDrift = ref(false);
     const isPlaying = ref(false);
     const repeatMode = ref(false);
+    const needsAudioUnlock = ref(false);
+    const audioUnlocked = ref(false);
 
     const progressPercent = computed(() => {
       if (duration.value === 0) return 0;
@@ -216,6 +227,29 @@ export default {
       console.log('Repeat mode:', repeatMode.value ? 'ON' : 'OFF');
     };
 
+    // Unlock audio context (handle browser autoplay policy)
+    const unlockAudio = async () => {
+      if (!audioElement.value) return;
+      
+      try {
+        // Try to play and immediately pause to unlock audio context
+        audioElement.value.muted = true;
+        await audioElement.value.play();
+        audioElement.value.pause();
+        audioElement.value.muted = false;
+        audioElement.value.currentTime = 0;
+        
+        audioUnlocked.value = true;
+        needsAudioUnlock.value = false;
+        console.log('✅ Audio context unlocked');
+        
+        // Request current state after unlock
+        websocket.requestState();
+      } catch (error) {
+        console.warn('Failed to unlock audio:', error);
+      }
+    };
+
     // Seek to position on progress bar click
     const seekToPosition = async (event) => {
       if (!audioElement.value || !duration.value) return;
@@ -260,8 +294,13 @@ export default {
         
         if (data.playbackState === 'playing') {
           audioElement.value.play().catch(e => {
-            console.warn('Autoplay blocked:', e);
-            websocket.reportError('Autoplay blocked');
+            if (e.name === 'NotAllowedError') {
+              console.warn('⚠️ Autoplay blocked - user interaction required');
+              needsAudioUnlock.value = true;
+            } else {
+              console.warn('Autoplay blocked:', e);
+              websocket.reportError('Autoplay blocked');
+            }
           });
         } else if (data.playbackState === 'paused') {
           audioElement.value.pause();
@@ -305,16 +344,26 @@ export default {
       if (timeUntilPlay > 0) {
         setTimeout(() => {
           audioElement.value.play().catch(e => {
-            console.warn('Play failed:', e);
-            websocket.reportError('Play failed: ' + e.message);
+            if (e.name === 'NotAllowedError') {
+              console.warn('⚠️ Play failed - user interaction required');
+              needsAudioUnlock.value = true;
+            } else {
+              console.warn('Play failed:', e);
+              websocket.reportError('Play failed: ' + e.message);
+            }
           });
         }, timeUntilPlay);
       } else {
         // If we're already past the scheduled time, play immediately
         console.warn('Already past scheduled time, playing immediately');
         audioElement.value.play().catch(e => {
-          console.warn('Play failed:', e);
-          websocket.reportError('Play failed: ' + e.message);
+          if (e.name === 'NotAllowedError') {
+            console.warn('⚠️ Play failed - user interaction required');
+            needsAudioUnlock.value = true;
+          } else {
+            console.warn('Play failed:', e);
+            websocket.reportError('Play failed: ' + e.message);
+          }
         });
       }
     };
@@ -335,12 +384,22 @@ export default {
       if (timeUntilPlay > 0) {
         setTimeout(() => {
           audioElement.value.play().catch(e => {
-            console.warn('Play failed:', e);
+            if (e.name === 'NotAllowedError') {
+              console.warn('⚠️ Resume failed - user interaction required');
+              needsAudioUnlock.value = true;
+            } else {
+              console.warn('Play failed:', e);
+            }
           });
         }, timeUntilPlay);
       } else {
         audioElement.value.play().catch(e => {
-          console.warn('Play failed:', e);
+          if (e.name === 'NotAllowedError') {
+            console.warn('⚠️ Resume failed - user interaction required');
+            needsAudioUnlock.value = true;
+          } else {
+            console.warn('Play failed:', e);
+          }
         });
       }
     };
@@ -451,6 +510,7 @@ export default {
       showDrift,
       isPlaying,
       repeatMode,
+      needsAudioUnlock,
       progressPercent,
       drift,
       formatTime,
@@ -464,6 +524,7 @@ export default {
       handleNextClick,
       handlePreviousClick,
       toggleRepeat,
+      unlockAudio,
       onError,
       seekToPosition,
       onVolumeChange,
@@ -478,6 +539,7 @@ export default {
   border-radius: 12px;
   padding: 20px;
   margin: 20px 0;
+  position: relative;
 }
 
 .now-playing {
@@ -694,5 +756,69 @@ audio {
   font-size: 0.9em;
   min-width: 40px;
   text-align: right;
+}
+
+/* Audio Unlock Overlay */
+.audio-unlock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+.unlock-content {
+  text-align: center;
+  padding: 40px;
+}
+
+.unlock-icon {
+  font-size: 4em;
+  margin-bottom: 20px;
+  animation: pulse 2s infinite;
+}
+
+.unlock-content h3 {
+  color: #4CAF50;
+  margin: 0 0 10px 0;
+  font-size: 1.5em;
+}
+
+.unlock-content p {
+  color: #999;
+  margin: 0;
+  font-size: 0.9em;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.audio-unlock-overlay:hover .unlock-content {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
 }
 </style>
