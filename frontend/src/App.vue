@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app-content">
     <header class="app-header">
       <h1>🎵 RPG Music Streaming</h1>
       <div class="stats">
@@ -55,10 +55,6 @@
         </div>
       </section>
     </main>
-
-    <footer class="app-footer">
-      <p>RPG Music Streaming Server • Session 4 • Synchronized Playback</p>
-    </footer>
   </div>
 </template>
 
@@ -289,7 +285,7 @@ body {
   color: #e0e0e0;
 }
 
-#app {
+#app-content {
   height: 100vh;
   display: flex;
   flex-direction: column;
