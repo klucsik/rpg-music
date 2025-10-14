@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 
-// WebSocket URL
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+// WebSocket URL - use environment variable or default to current page origin
+const WS_URL = import.meta.env.VITE_WS_URL || window.location.origin;
 
 class WebSocketService {
   constructor() {

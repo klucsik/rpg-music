@@ -2,19 +2,18 @@
 # Stage 1: Build frontend
 FROM node:22-alpine AS frontend-builder
 
+WORKDIR /app
+
+# Copy frontend and create backend directory structure
+COPY frontend/package*.json ./frontend/
+COPY frontend/ ./frontend/
+
+# Create backend/public directory for build output
+RUN mkdir -p ./backend/public
+
+# Install frontend dependencies and build
 WORKDIR /app/frontend
-
-# Copy frontend package files
-COPY frontend/package*.json ./
-
-# Install frontend dependencies
-RUN npm ci
-
-# Copy frontend source
-COPY frontend/ ./
-
-# Build frontend
-RUN npm run build
+RUN npm ci && npm run build
 
 # Stage 2: Build backend and final image
 FROM node:22-alpine AS production
@@ -34,7 +33,7 @@ RUN npm ci --only=production
 COPY backend/ ./
 
 # Copy built frontend from frontend-builder stage to backend's public directory
-COPY --from=frontend-builder /app/frontend/dist ./public
+COPY --from=frontend-builder /app/backend/public ./public
 
 # Create directories for data and music
 RUN mkdir -p /app/data /app/music
@@ -53,5 +52,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Run database migration on startup and then start the server
-CMD ["sh", "-c", "node src/db/migrate.js && node src/server.js"]
+# Start the server (database initialization happens automatically in server.js)
+CMD ["node", "src/server.js"]
