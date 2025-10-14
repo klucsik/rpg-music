@@ -21,7 +21,7 @@ const config = {
   // Audio
   defaultBitrate: parseInt(process.env.DEFAULT_BITRATE || '256', 10),
   maxDriftSeconds: parseInt(process.env.MAX_DRIFT_SECONDS || '10', 10),
-  positionCheckInterval: parseInt(process.env.POSITION_CHECK_INTERVAL || '60000', 10),
+  positionCheckInterval: parseInt(process.env.POSITION_CHECK_INTERVAL || '3000', 10), // Check every 3 seconds for sync and autoplay
   
   // WebSocket
   wsPingInterval: parseInt(process.env.WS_PING_INTERVAL || '25000', 10),

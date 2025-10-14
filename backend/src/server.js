@@ -12,6 +12,7 @@ import audioRoutes from './routes/audio.js';
 import scannerRoutes from './routes/scanner.js';
 import playbackRoutes from './routes/playback.js';
 import folderRoutes from './routes/folders.js';
+import playlistRoutes from './routes/playlist.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
 import FileWatcher from './services/fileWatcher.js';
@@ -56,6 +57,7 @@ app.use((req, res, next) => {
 app.use('/api', systemRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/folders', folderRoutes);
+app.use('/api/playlist', playlistRoutes);
 app.use('/audio', audioRoutes);
 app.use('/api/scan', scannerRoutes);
 app.use('/api/playback', playbackRoutes);

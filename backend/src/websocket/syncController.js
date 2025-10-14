@@ -10,6 +10,7 @@ class SyncController {
   constructor(io) {
     this.io = io;
     this.positionCheckInterval = null;
+    this.currentTrackEndedHandled = false; // Flag to prevent multiple track-end handling
   }
 
   /**
@@ -27,6 +28,9 @@ class SyncController {
    */
   async playTrack(trackId, startPosition = 0) {
     try {
+      // Reset track ended flag for new track
+      this.currentTrackEndedHandled = false;
+      
       // Get track from database
       const track = trackQueries.getById(trackId);
       
@@ -38,8 +42,8 @@ class SyncController {
       // Update session state
       sessionState.playTrack(track, startPosition);
 
-      // Calculate scheduled start time (2 seconds from now for buffer)
-      const scheduledStartTime = Date.now() + 2000;
+      // Calculate scheduled start time (1 seconds from now for buffer)
+      const scheduledStartTime = Date.now() + 1000;
 
       // Broadcast to all clients
       const payload = {
@@ -202,6 +206,53 @@ class SyncController {
   }
 
   /**
+   * Play next track in playlist
+   */
+  async playNextTrack() {
+    try {
+      const { playlistQueries } = await import('../db/database.js');
+      const playlist = playlistQueries.getAll();
+      const loopAll = playlistQueries.getLoopAll();
+      
+      if (playlist.length === 0) {
+        logger.info('Playlist is empty, cannot play next track');
+        return { success: false, reason: 'empty_playlist' };
+      }
+
+      const currentTrack = sessionState.currentTrack;
+      if (!currentTrack) {
+        // No current track, play first one
+        return await this.playTrack(playlist[0].id);
+      }
+
+      // Find current track in playlist
+      const currentIndex = playlist.findIndex(t => t.id === currentTrack.id);
+      
+      if (currentIndex === -1) {
+        // Current track not in playlist, play first one
+        return await this.playTrack(playlist[0].id);
+      }
+
+      // Check if there's a next track
+      if (currentIndex < playlist.length - 1) {
+        // Play next track
+        const nextTrack = playlist[currentIndex + 1];
+        return await this.playTrack(nextTrack.id);
+      } else if (loopAll) {
+        // Loop back to first track
+        return await this.playTrack(playlist[0].id);
+      } else {
+        // End of playlist, stop
+        this.stop();
+        return { success: false, reason: 'end_of_playlist' };
+      }
+    } catch (error) {
+      logger.error({ error }, 'Failed to play next track');
+      throw error;
+    }
+  }
+
+  /**
    * Start periodic position checks
    */
   startPositionChecks() {
@@ -211,9 +262,34 @@ class SyncController {
     }
 
     // Start new interval
-    this.positionCheckInterval = setInterval(() => {
-      if (sessionState.isPlaying()) {
-        const currentPosition = sessionState.getCurrentPosition();
+    this.positionCheckInterval = setInterval(async () => {
+      const { playlistQueries } = await import('../db/database.js');
+      const playlist = playlistQueries.getAll();
+      
+      // Update session position to check if track has ended
+      sessionState.updatePosition();
+      
+      const currentTrack = sessionState.currentTrack;
+      const currentPosition = sessionState.getCurrentPosition();
+      const isPlaying = sessionState.isPlaying();
+      
+      // If we have a playlist and nothing is playing, start the next track
+      if (!isPlaying && playlist.length > 0) {
+        logger.info({ 
+          playlistLength: playlist.length,
+          currentTrack: currentTrack?.title,
+          position: currentPosition?.toFixed(2)
+        }, 'Nothing playing, starting next track from playlist');
+        
+        try {
+          await this.playNextTrack();
+        } catch (err) {
+          logger.error({ error: err }, 'Failed to start next track');
+        }
+      }
+      
+      // Send position checks when playing
+      if (isPlaying) {
 
         const payload = {
           event: 'position_check',
@@ -227,7 +303,7 @@ class SyncController {
         this.io.emit('position_check', payload.data);
 
         logger.debug({ 
-          position: currentPosition.toFixed(2) 
+          position: currentPosition.toFixed(2)
         }, 'Position check sent');
       }
     }, config.positionCheckInterval);
@@ -264,6 +340,29 @@ class SyncController {
    */
   handleClientError(clientId, error) {
     logger.error({ clientId, error }, 'Client reported error');
+  }
+
+  /**
+   * Handle track ended event from client
+   */
+  async handleTrackEnded(clientId) {
+    if (!this.currentTrackEndedHandled) {
+      logger.info({ clientId }, 'Track ended event received from client');
+      this.currentTrackEndedHandled = true;
+      
+      // Check if we have a playlist and should auto-advance
+      const { playlistQueries } = await import('../db/database.js');
+      const playlist = playlistQueries.getAll();
+      if (playlist.length > 0) {
+        try {
+          await this.playNextTrack();
+        } catch (error) {
+          logger.error({ error, clientId }, 'Failed to play next track after ended event');
+        }
+      }
+    } else {
+      logger.debug({ clientId }, 'Track ended event ignored (already handled)');
+    }
   }
 
   /**

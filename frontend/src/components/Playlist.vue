@@ -25,6 +25,14 @@
         🗑️ Clear
       </button>
       <button 
+        @click="toggleLoop" 
+        class="action-btn"
+        :class="{ 'loop-active': loopAll }"
+        title="Loop all tracks"
+      >
+        🔁 {{ loopAll ? 'Loop: On' : 'Loop: Off' }}
+      </button>
+      <button 
         @click="showSaveDialog = true" 
         :disabled="playlist.length === 0"
         class="action-btn save-btn"
@@ -132,7 +140,9 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import api from '../services/api';
+import websocket from '../services/websocket';
 
 export default {
   name: 'Playlist',
@@ -149,6 +159,7 @@ export default {
   emits: ['play-track', 'save-to-folder'],
   setup(props, { emit }) {
     const playlist = ref([]);
+    const loopAll = ref(false);
     const isDragOver = ref(false);
     const draggingIndex = ref(null);
     const dropIndicatorIndex = ref(null);
@@ -156,6 +167,27 @@ export default {
     const showSaveDialog = ref(false);
     const showClearConfirm = ref(false);
     const selectedFolderId = ref(null);
+
+    // Load playlist from server
+    const loadPlaylist = async () => {
+      try {
+        const response = await api.getPlaylist();
+        playlist.value = response.playlist;
+        loopAll.value = response.loopAll;
+      } catch (error) {
+        console.error('Failed to load playlist:', error);
+      }
+    };
+
+    // Save playlist to server
+    const savePlaylistToServer = async () => {
+      try {
+        const trackIds = playlist.value.map(t => t.id);
+        await api.updatePlaylist(trackIds);
+      } catch (error) {
+        console.error('Failed to save playlist:', error);
+      }
+    };
 
     const isCurrentTrack = (trackId) => {
       return props.currentTrackId === trackId;
@@ -166,21 +198,34 @@ export default {
       const exists = playlist.value.some(t => t.id === track.id);
       if (!exists) {
         playlist.value.push(track);
+        savePlaylistToServer();
       }
     };
 
     const addTracks = (tracks) => {
       // Add multiple tracks (e.g., from a folder)
-      tracks.forEach(track => addTrack(track));
+      tracks.forEach(track => {
+        const exists = playlist.value.some(t => t.id === track.id);
+        if (!exists) {
+          playlist.value.push(track);
+        }
+      });
+      savePlaylistToServer();
     };
 
     const removeTrack = (index) => {
       playlist.value.splice(index, 1);
+      savePlaylistToServer();
     };
 
-    const clearPlaylist = () => {
-      playlist.value = [];
-      showClearConfirm.value = false;
+    const clearPlaylist = async () => {
+      try {
+        await api.clearPlaylist();
+        playlist.value = [];
+        showClearConfirm.value = false;
+      } catch (error) {
+        console.error('Failed to clear playlist:', error);
+      }
     };
 
     const confirmClear = () => {
@@ -195,6 +240,17 @@ export default {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
       playlist.value = shuffled;
+      savePlaylistToServer();
+    };
+
+    const toggleLoop = async () => {
+      try {
+        const newLoopState = !loopAll.value;
+        await api.setPlaylistLoop(newLoopState);
+        loopAll.value = newLoopState;
+      } catch (error) {
+        console.error('Failed to toggle loop:', error);
+      }
     };
 
     const playTrack = (track) => {
@@ -286,6 +342,7 @@ export default {
           
           // Insert at drop position
           playlist.value.splice(dropIndex, 0, track);
+          savePlaylistToServer();
         }
       } catch (err) {
         console.error('Failed to parse drop data:', err);
@@ -336,6 +393,7 @@ export default {
         items.splice(dropIndex, 0, removed);
         playlist.value = items;
         draggingIndex.value = null;
+        savePlaylistToServer();
       } else {
         // External drop (from library) - handle same as container drop
         try {
@@ -361,6 +419,7 @@ export default {
             
             // Insert at drop position
             playlist.value.splice(dropIndex, 0, track);
+            savePlaylistToServer();
           }
         } catch (err) {
           console.error('Failed to parse drop data:', err);
@@ -368,8 +427,41 @@ export default {
       }
     };
 
+    // Handle playlist updates from server (other clients)
+    const handlePlaylistUpdate = (data) => {
+      console.log('Received playlist update from server:', data);
+      if (data.playlist !== undefined) {
+        playlist.value = data.playlist;
+        console.log('Updated local playlist, now has', playlist.value.length, 'tracks');
+      }
+      if (data.loopAll !== undefined) {
+        loopAll.value = data.loopAll;
+        console.log('Updated loop state:', loopAll.value);
+      }
+    };
+
+    const handlePlaylistSettingsUpdate = (data) => {
+      console.log('Received playlist settings update:', data);
+      if (data.loopAll !== undefined) {
+        loopAll.value = data.loopAll;
+      }
+    };
+
+    // Load playlist on mount and listen to updates
+    onMounted(() => {
+      loadPlaylist();
+      websocket.on('playlist_update', handlePlaylistUpdate);
+      websocket.on('playlist_settings_update', handlePlaylistSettingsUpdate);
+    });
+
+    onUnmounted(() => {
+      websocket.off('playlist_update', handlePlaylistUpdate);
+      websocket.off('playlist_settings_update', handlePlaylistSettingsUpdate);
+    });
+
     return {
       playlist,
+      loopAll,
       isDragOver,
       dropIndicatorIndex,
       showSaveDialog,
@@ -382,6 +474,7 @@ export default {
       clearPlaylist,
       confirmClear,
       randomize,
+      toggleLoop,
       playTrack,
       saveToFolder,
       onDragOver,
@@ -454,6 +547,15 @@ export default {
 .action-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.action-btn.loop-active {
+  background: #2196F3;
+  font-weight: bold;
+}
+
+.action-btn.loop-active:hover {
+  background: #1976D2;
 }
 
 .action-btn.save-btn {

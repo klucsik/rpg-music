@@ -52,14 +52,6 @@
           {{ isPlaying ? '⏸️' : '▶️' }}
         </button>
         <button 
-          @click="handleStopClick" 
-          class="control-btn"
-          :disabled="!currentTrack"
-          title="Stop"
-        >
-          ⏹️
-        </button>
-        <button 
           @click="handleNextClick" 
           class="control-btn"
           :disabled="!hasNext"
@@ -181,15 +173,8 @@ export default {
       console.log('Audio ended');
       isPlaying.value = false;
       
-      // Auto-play next track if repeat mode is on or has next
-      if (repeatMode.value && currentTrack.value) {
-        // Replay current track
-        audioElement.value.currentTime = 0;
-        audioElement.value.play();
-      } else if (hasNext.value) {
-        // Play next track
-        emit('next-track');
-      }
+      // Report track ended to server - let server handle autoplay
+      websocket.reportTrackEnded();
     };
 
     const onError = (event) => {
@@ -232,14 +217,22 @@ export default {
     };
 
     // Seek to position on progress bar click
-    const seekToPosition = (event) => {
+    const seekToPosition = async (event) => {
       if (!audioElement.value || !duration.value) return;
       
       const rect = event.currentTarget.getBoundingClientRect();
       const percent = (event.clientX - rect.left) / rect.width;
       const newTime = percent * duration.value;
       
-      audioElement.value.currentTime = newTime;
+      // Call API to sync seek across all clients
+      try {
+        await api.seek(newTime);
+        console.log('Seek request sent to server:', newTime);
+      } catch (error) {
+        console.error('Failed to seek:', error);
+        // Fallback to local seek if API fails
+        audioElement.value.currentTime = newTime;
+      }
     };
 
     // Volume change

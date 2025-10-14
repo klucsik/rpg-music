@@ -57,6 +57,12 @@ export function initWebSocket(httpServer) {
       syncController.handleClientError(clientId, data);
     });
 
+    // Handle track ended event from client
+    socket.on('track_ended', () => {
+      logger.info({ clientId }, 'Client reported track ended');
+      syncController.handleTrackEnded(clientId);
+    });
+
     // Handle disconnection
     socket.on('disconnect', (reason) => {
       logger.info({ clientId, reason }, 'Client disconnected');

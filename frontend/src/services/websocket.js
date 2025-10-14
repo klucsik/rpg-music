@@ -149,14 +149,29 @@ class WebSocketService {
   /**
    * Report error to server
    */
-  reportError(error, trackId = null) {
-    if (this.socket && this.connected) {
-      this.socket.emit('client_error', {
-        clientId: this.socket.id,
-        error,
-        trackId,
-      });
+  reportError(message, trackId = null) {
+    if (!this.socket || !this.connected) {
+      return;
     }
+
+    this.socket.emit('client_error', {
+      clientId: this.socket.id,
+      message,
+      trackId,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Report track ended to server
+   */
+  reportTrackEnded() {
+    if (!this.socket || !this.connected) {
+      return;
+    }
+
+    console.log('Reporting track ended to server');
+    this.socket.emit('track_ended');
   }
 
   /**

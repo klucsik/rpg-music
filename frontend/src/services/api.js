@@ -96,6 +96,38 @@ class ApiClient {
     return this.request(`/api/folders/${folderId}/tracks`);
   }
 
+  // Playlist
+  async getPlaylist() {
+    return this.request('/api/playlist');
+  }
+
+  async updatePlaylist(trackIds) {
+    return this.request('/api/playlist', {
+      method: 'PUT',
+      body: JSON.stringify({ trackIds }),
+    });
+  }
+
+  async reorderPlaylist(trackIds) {
+    return this.request('/api/playlist/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ trackIds }),
+    });
+  }
+
+  async clearPlaylist() {
+    return this.request('/api/playlist', {
+      method: 'DELETE',
+    });
+  }
+
+  async setPlaylistLoop(enabled) {
+    return this.request('/api/playlist/loop', {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    });
+  }
+
   // Playback
   async playTrack(trackId, startPosition = 0) {
     return this.request('/api/playback/play', {
