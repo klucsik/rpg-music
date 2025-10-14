@@ -28,6 +28,10 @@ class SyncController {
    */
   async playTrack(trackId, startPosition = 0) {
     try {
+      // Log where this was called from
+      const stack = new Error().stack;
+      logger.info({ trackId, callStack: stack?.split('\n')[2]?.trim() }, 'playTrack called');
+      
       // Reset track ended flag for new track
       this.currentTrackEndedHandled = false;
       
@@ -80,7 +84,9 @@ class SyncController {
    * Pause playback
    */
   pause() {
+    const stateBefore = sessionState.playbackState;
     sessionState.pause();
+    const stateAfter = sessionState.playbackState;
 
     const payload = {
       event: 'pause',
@@ -92,7 +98,11 @@ class SyncController {
 
     this.io.emit('pause', payload.data);
 
-    logger.info({ position: payload.data.position }, 'Playback paused');
+    logger.info({ 
+      position: payload.data.position,
+      stateBefore,
+      stateAfter
+    }, 'Playback paused');
 
     return { success: true, state: sessionState.getState() };
   }
@@ -293,14 +303,24 @@ class SyncController {
       const currentTrack = sessionState.currentTrack;
       const currentPosition = sessionState.getCurrentPosition();
       const isPlaying = sessionState.isPlaying();
+      const playbackState = sessionState.playbackState;
       
-      // If we have a playlist and nothing is playing, start the next track
-      if (!isPlaying && playlist.length > 0) {
+      // Log the current state for debugging
+      logger.debug({ 
+        playbackState,
+        position: currentPosition?.toFixed(2),
+        trackTitle: currentTrack?.title,
+        playlistLength: playlist.length
+      }, 'Position check state');
+      
+      // If track is stopped (not paused) and we have a playlist, start the next track
+      // Don't auto-advance when manually paused
+      if (playbackState === 'stopped' && playlist.length > 0) {
         logger.info({ 
           playlistLength: playlist.length,
           currentTrack: currentTrack?.title,
           position: currentPosition?.toFixed(2)
-        }, 'Nothing playing, starting next track from playlist');
+        }, 'Track stopped, starting next track from playlist');
         
         try {
           await this.playNextTrack();

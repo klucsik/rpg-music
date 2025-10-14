@@ -137,6 +137,7 @@ export default {
     const repeatMode = ref(false);
     const needsAudioUnlock = ref(false);
     const audioUnlocked = ref(false);
+    const manuallyPausing = ref(false);  // Flag to prevent ended event during manual pause
 
     const progressPercent = computed(() => {
       if (duration.value === 0) return 0;
@@ -165,6 +166,7 @@ export default {
     const onPlay = () => {
       console.log('Audio playing');
       isPlaying.value = true;
+      manuallyPausing.value = false;  // Clear pause flag when playing
     };
 
     const onPause = () => {
@@ -173,8 +175,15 @@ export default {
     };
 
     const onEnded = () => {
-      console.log('Audio ended');
+      console.log('Audio ended', 'currentTime:', currentTime.value, 'duration:', duration.value);
       isPlaying.value = false;
+      
+      // Don't report track ended if we're in the middle of a manual pause
+      if (manuallyPausing.value) {
+        console.log('Ended event during manual pause, ignoring');
+        manuallyPausing.value = false;
+        return;
+      }
       
       // Report track ended to server - let server handle repeat/autoplay
       websocket.reportTrackEnded();
@@ -189,12 +198,19 @@ export default {
     const handlePlayPauseClick = async () => {
       try {
         if (isPlaying.value) {
+          // Set flag to prevent ended event from triggering during pause
+          manuallyPausing.value = true;
           await api.pause();
+          // Clear flag after a short delay (in case ended event is delayed)
+          setTimeout(() => {
+            manuallyPausing.value = false;
+          }, 500);
         } else {
           await api.resume();
         }
       } catch (error) {
         console.error('Play/pause failed:', error);
+        manuallyPausing.value = false;
       }
     };
 
@@ -371,8 +387,15 @@ export default {
 
     const handlePause = (data) => {
       console.log('Pause:', data);
+      // Pause first
       audioElement.value.pause();
+      // Set position - but set the flag first to prevent ended event
+      manuallyPausing.value = true;
       audioElement.value.currentTime = data.position;
+      // Clear flag after a short delay
+      setTimeout(() => {
+        manuallyPausing.value = false;
+      }, 100);
     };
 
     const handleResume = (data) => {

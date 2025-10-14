@@ -29,11 +29,19 @@ class SessionState {
    * Pause playback
    */
   pause() {
-    if (this.playbackState === 'playing') {
-      // Update position to current time
-      this.updatePosition();
+    if (this.playbackState === 'playing' || this.playbackState === 'stopped') {
+      // Update position to current time (but don't let it auto-stop)
+      if (this.lastUpdateTime) {
+        const elapsed = (Date.now() - this.lastUpdateTime) / 1000;
+        this.position += elapsed;
+        this.lastUpdateTime = Date.now();
+      }
+      // Cap position at duration if exceeded
+      if (this.currentTrack && this.position > this.currentTrack.duration) {
+        this.position = this.currentTrack.duration;
+      }
+      // Force paused state (even if it was 'stopped')
       this.playbackState = 'paused';
-      this.lastUpdateTime = Date.now();
     }
     
     return this.getState();
