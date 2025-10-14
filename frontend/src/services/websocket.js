@@ -83,6 +83,11 @@ class WebSocketService {
       this.emit('volume_change', data);
     });
 
+    this.socket.on('repeat_mode_change', (data) => {
+      this.calculateTimeOffset(data.serverTimestamp);
+      this.emit('repeat_mode_change', data);
+    });
+
     this.socket.on('position_check', (data) => {
       this.calculateTimeOffset(data.serverTimestamp);
       this.emit('position_check', data);

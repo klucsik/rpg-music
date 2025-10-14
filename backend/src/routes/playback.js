@@ -146,6 +146,25 @@ router.post('/volume', (req, res) => {
 });
 
 /**
+ * Toggle repeat mode
+ * POST /api/playback/repeat
+ */
+router.post('/repeat', (req, res) => {
+  try {
+    const syncController = getSyncController();
+    const result = syncController.toggleRepeat();
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to toggle repeat mode');
+    res.status(500).json({
+      error: 'Failed to toggle repeat mode',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * Get current playback state
  * GET /api/playback/state
  */

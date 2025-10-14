@@ -199,6 +199,27 @@ class SyncController {
   }
 
   /**
+   * Toggle repeat mode
+   */
+  toggleRepeat() {
+    sessionState.toggleRepeat();
+
+    const payload = {
+      event: 'repeat_mode_change',
+      data: {
+        repeatMode: sessionState.repeatMode,
+        serverTimestamp: Date.now(),
+      },
+    };
+
+    this.io.emit('repeat_mode_change', payload.data);
+
+    logger.info({ repeatMode: sessionState.repeatMode }, 'Repeat mode changed');
+
+    return { success: true, state: sessionState.getState() };
+  }
+
+  /**
    * Get current state
    */
   getState() {
@@ -347,17 +368,28 @@ class SyncController {
    */
   async handleTrackEnded(clientId) {
     if (!this.currentTrackEndedHandled) {
-      logger.info({ clientId }, 'Track ended event received from client');
+      logger.info({ clientId, repeatMode: sessionState.repeatMode }, 'Track ended event received from client');
       this.currentTrackEndedHandled = true;
       
-      // Check if we have a playlist and should auto-advance
-      const { playlistQueries } = await import('../db/database.js');
-      const playlist = playlistQueries.getAll();
-      if (playlist.length > 0) {
+      // Check if repeat mode is enabled
+      if (sessionState.repeatMode && sessionState.currentTrack) {
+        logger.info('Repeat mode enabled: replaying current track');
         try {
-          await this.playNextTrack();
+          // Replay the same track from the beginning
+          await this.playTrack(sessionState.currentTrack.id, 0);
         } catch (error) {
-          logger.error({ error, clientId }, 'Failed to play next track after ended event');
+          logger.error({ error, clientId }, 'Failed to replay track in repeat mode');
+        }
+      } else {
+        // Check if we have a playlist and should auto-advance
+        const { playlistQueries } = await import('../db/database.js');
+        const playlist = playlistQueries.getAll();
+        if (playlist.length > 0) {
+          try {
+            await this.playNextTrack();
+          } catch (error) {
+            logger.error({ error, clientId }, 'Failed to play next track after ended event');
+          }
         }
       }
     } else {

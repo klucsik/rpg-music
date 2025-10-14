@@ -1,7 +1,19 @@
 <template>
   <div class="track-list">
     <div class="list-header">
-      <h3>Music Library</h3>
+      <div class="header-top">
+        <h3>Music Library</h3>
+        <a 
+          v-if="addMusicUrl" 
+          :href="addMusicUrl" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="add-music-btn"
+          title="Add new music"
+        >
+          ➕ Add Music
+        </a>
+      </div>
       <div class="search-bar">
         <input
           type="text"
@@ -89,7 +101,17 @@ export default {
     const loading = ref(false);
     const error = ref(null);
     const draggingTrackId = ref(null);
+    const addMusicUrl = ref('');
     let searchTimeout = null;
+
+    const loadConfig = async () => {
+      try {
+        const response = await api.getConfig();
+        addMusicUrl.value = response.addMusicUrl || '';
+      } catch (error) {
+        console.error('Failed to load config:', error);
+      }
+    };
 
     const formatDuration = (seconds) => {
       if (!seconds) return '-:--';
@@ -199,6 +221,7 @@ export default {
     };
 
     onMounted(() => {
+      loadConfig();
       loadTracks();
       // Listen for library updates
       websocket.on('library_update', handleLibraryUpdate);
@@ -216,6 +239,7 @@ export default {
       loading,
       error,
       draggingTrackId,
+      addMusicUrl,
       formatDuration,
       isCurrentTrack,
       loadPage,
@@ -247,10 +271,42 @@ export default {
   margin-bottom: 20px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
 .list-header h3 {
-  margin: 0 0 15px 0;
+  margin: 0;
   color: #e0e0e0;
   font-size: 1.3em;
+}
+
+.add-music-btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.add-music-btn:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.add-music-btn:active {
+  transform: translateY(0);
 }
 
 .search-bar {

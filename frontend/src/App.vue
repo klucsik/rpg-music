@@ -7,16 +7,6 @@
           <span class="stat">{{ stats.tracks }} tracks</span>
           <span class="stat">{{ stats.clients }} clients</span>
         </div>
-        <a 
-          v-if="addMusicUrl" 
-          :href="addMusicUrl" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          class="add-music-btn"
-          title="Add new music"
-        >
-          ➕ Add Music
-        </a>
       </div>
     </header>
 
@@ -93,22 +83,12 @@ export default {
     const folderManagerRef = ref(null);
     const playlistRef = ref(null);
     const foldersWithPaths = ref([]);
-    const addMusicUrl = ref('');
     const stats = ref({
       tracks: 0,
       clients: 0,
     });
 
     let statsInterval = null;
-
-    const loadConfig = async () => {
-      try {
-        const response = await api.getConfig();
-        addMusicUrl.value = response.addMusicUrl || '';
-      } catch (error) {
-        console.error('Failed to load config:', error);
-      }
-    };
 
     const loadStats = async () => {
       try {
@@ -242,9 +222,6 @@ export default {
     });
 
     onMounted(() => {
-      // Load config
-      loadConfig();
-      
       // Load initial stats
       loadStats();
       
@@ -274,7 +251,6 @@ export default {
       playlistRef,
       foldersWithPaths,
       stats,
-      addMusicUrl,
       hasNext,
       hasPrevious,
       onPlayTrack,
@@ -350,31 +326,6 @@ body {
   border-radius: 6px;
   font-size: 0.9em;
   color: #999;
-}
-
-.add-music-btn {
-  padding: 8px 20px;
-  background: #4CAF50;
-  color: white;
-  text-decoration: none;
-  border-radius: 6px;
-  font-size: 0.9em;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.add-music-btn:hover {
-  background: #45a049;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-}
-
-.add-music-btn:active {
-  transform: translateY(0);
 }
 
 .app-main {

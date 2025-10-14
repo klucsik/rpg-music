@@ -16,9 +16,14 @@
         <p v-if="currentTrack" class="artist">{{ currentTrack.artist || 'Unknown Artist' }}</p>
       </div>
       <div class="sync-status" :class="{ connected: isConnected, disconnected: !isConnected }">
-        <span class="status-dot"></span>
-        {{ isConnected ? 'Connected' : 'Disconnected' }}
-        <span v-if="isConnected" class="client-id"></span>
+        <div class="status-line">
+          <span class="status-dot"></span>
+          {{ isConnected ? 'Connected' : 'Disconnected' }}
+          <span v-if="isConnected" class="client-id"></span>
+        </div>
+        <div v-if="drift !== null" class="drift-line" :class="{ 'drift-warning': drift > 5 }">
+          Drift: {{ drift.toFixed(2) }}s
+        </div>
       </div>
     </div>
 
@@ -77,14 +82,6 @@
           🔁
         </button>
       </div>
-
-      <div class="drift-info" v-if="showDrift && expectedPosition !== null">
-        <span>Expected: {{ expectedPosition.toFixed(1) }}s</span>
-        <span>Actual: {{ currentTime.toFixed(1) }}s</span>
-        <span :class="{ 'drift-warning': drift > 5 }">
-          Drift: {{ drift.toFixed(1) }}s
-        </span>
-      </div>
     </div>
 
     <div class="volume-control">
@@ -99,6 +96,8 @@
       />
       <span class="volume-value">{{ Math.round(volume * 100) }}%</span>
     </div>
+
+    
   </div>
 </template>
 
@@ -133,7 +132,7 @@ export default {
     const isConnected = ref(false);
     const clientId = ref(null);
     const expectedPosition = ref(null);
-    const showDrift = ref(false);
+    const drift = ref(null);  // Only updated on position check from server
     const isPlaying = ref(false);
     const repeatMode = ref(false);
     const needsAudioUnlock = ref(false);
@@ -144,20 +143,13 @@ export default {
       return (currentTime.value / duration.value) * 100;
     });
 
-    const drift = computed(() => {
-      if (expectedPosition.value === null) return 0;
-      return Math.abs(expectedPosition.value - currentTime.value);
-    });
-
     // Format time as MM:SS
     const formatTime = (seconds) => {
-      if (!seconds || isNaN(seconds)) return '0:00';
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    // Audio element event handlers
+      if (!seconds) return '0:00';
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.floor(seconds % 60);
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };    // Audio element event handlers
     const onTimeUpdate = () => {
       if (audioElement.value) {
         currentTime.value = audioElement.value.currentTime;
@@ -184,7 +176,7 @@ export default {
       console.log('Audio ended');
       isPlaying.value = false;
       
-      // Report track ended to server - let server handle autoplay
+      // Report track ended to server - let server handle repeat/autoplay
       websocket.reportTrackEnded();
     };
 
@@ -222,9 +214,13 @@ export default {
       emit('previous-track');
     };
 
-    const toggleRepeat = () => {
-      repeatMode.value = !repeatMode.value;
-      console.log('Repeat mode:', repeatMode.value ? 'ON' : 'OFF');
+    const toggleRepeat = async () => {
+      try {
+        await api.toggleRepeat();
+        console.log('Repeat mode toggle sent to server');
+      } catch (error) {
+        console.error('Failed to toggle repeat mode:', error);
+      }
     };
 
     // Unlock audio context (handle browser autoplay policy)
@@ -310,6 +306,11 @@ export default {
       volume.value = data.volume;
       if (audioElement.value) {
         audioElement.value.volume = data.volume;
+      }
+      
+      // Sync repeat mode
+      if (typeof data.repeatMode === 'boolean') {
+        repeatMode.value = data.repeatMode;
       }
     };
 
@@ -407,6 +408,7 @@ export default {
     const handleSeek = (data) => {
       console.log('Seek:', data);
       audioElement.value.currentTime = data.position;
+      expectedPosition.value = data.position;
       
       if (data.scheduledStartTime) {
         const serverTime = websocket.getServerTime();
@@ -434,21 +436,22 @@ export default {
       }
     };
 
+    const handleRepeatModeChange = (data) => {
+      console.log('Repeat mode change:', data);
+      repeatMode.value = data.repeatMode;
+    };
+
     const handlePositionCheck = (data) => {
       expectedPosition.value = data.expectedPosition;
-      showDrift.value = true;
       
+      // Calculate drift at this moment only
       const currentDrift = Math.abs(data.expectedPosition - currentTime.value);
+      drift.value = currentDrift;
       
       if (currentDrift > data.maxDrift && !audioElement.value.paused) {
         console.log(`Correcting drift: ${currentDrift.toFixed(2)}s > ${data.maxDrift}s`);
         audioElement.value.currentTime = data.expectedPosition;
       }
-      
-      // Hide drift info after a few seconds
-      setTimeout(() => {
-        showDrift.value = false;
-      }, 5000);
     };
 
     const handleConnected = (data) => {
@@ -476,6 +479,7 @@ export default {
       websocket.on('seek', handleSeek);
       websocket.on('stop', handleStop);
       websocket.on('volume_change', handleVolumeChange);
+      websocket.on('repeat_mode_change', handleRepeatModeChange);
       websocket.on('position_check', handlePositionCheck);
       
       // Set initial volume
@@ -495,6 +499,7 @@ export default {
       websocket.off('seek', handleSeek);
       websocket.off('stop', handleStop);
       websocket.off('volume_change', handleVolumeChange);
+      websocket.off('repeat_mode_change', handleRepeatModeChange);
       websocket.off('position_check', handlePositionCheck);
     });
 
@@ -507,12 +512,11 @@ export default {
       isConnected,
       clientId,
       expectedPosition,
-      showDrift,
+      drift,
       isPlaying,
       repeatMode,
       needsAudioUnlock,
       progressPercent,
-      drift,
       formatTime,
       onTimeUpdate,
       onLoadedMetadata,
@@ -566,8 +570,8 @@ export default {
 
 .sync-status {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 12px;
   border-radius: 6px;
   background: #1a1a1a;
@@ -580,6 +584,12 @@ export default {
 
 .sync-status.disconnected {
   color: #f44336;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .status-dot {
@@ -598,6 +608,17 @@ export default {
 .client-id {
   color: #666;
   font-size: 0.85em;
+}
+
+.drift-line {
+  font-size: 0.85em;
+  color: #4CAF50;
+  padding-left: 16px;
+}
+
+.drift-line.drift-warning {
+  color: #ff9800;
+  font-weight: bold;
 }
 
 audio {
@@ -694,23 +715,6 @@ audio {
 .control-btn.active {
   background: #4CAF50;
   border-color: #4CAF50;
-}
-
-.drift-info {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 10px;
-  padding: 8px;
-  background: #1a1a1a;
-  border-radius: 6px;
-  font-size: 0.85em;
-  color: #666;
-}
-
-.drift-warning {
-  color: #ff9800 !important;
-  font-weight: bold;
 }
 
 .volume-control {

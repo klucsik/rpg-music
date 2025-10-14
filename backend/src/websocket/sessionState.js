@@ -10,6 +10,7 @@ class SessionState {
     this.position = 0; // Current position in seconds
     this.lastUpdateTime = null; // Server timestamp of last state change
     this.volume = 0.7; // 0.0 to 1.0
+    this.repeatMode = false; // Whether to repeat the current track
   }
 
   /**
@@ -81,6 +82,22 @@ class SessionState {
   }
 
   /**
+   * Toggle repeat mode
+   */
+  toggleRepeat() {
+    this.repeatMode = !this.repeatMode;
+    return this.getState();
+  }
+
+  /**
+   * Set repeat mode
+   */
+  setRepeat(enabled) {
+    this.repeatMode = !!enabled;
+    return this.getState();
+  }
+
+  /**
    * Update current position based on elapsed time
    */
   updatePosition() {
@@ -119,6 +136,7 @@ class SessionState {
       position: this.getCurrentPosition(),
       lastUpdateTime: this.lastUpdateTime,
       volume: this.volume,
+      repeatMode: this.repeatMode,
       serverTime: Date.now(),
     };
   }

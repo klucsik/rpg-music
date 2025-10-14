@@ -162,6 +162,10 @@ class ApiClient {
     });
   }
 
+  async toggleRepeat() {
+    return this.request('/api/playback/repeat', { method: 'POST' });
+  }
+
   async getPlaybackState() {
     return this.request('/api/playback/state');
   }
