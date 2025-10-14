@@ -1,6 +1,7 @@
 import express from 'express';
 import { playlistQueries } from '../db/database.js';
 import logger from '../utils/logger.js';
+import { getIO } from '../websocket/socketServer.js';
 
 const router = express.Router();
 
@@ -38,9 +39,16 @@ router.put('/', (req, res) => {
     const loopAll = playlistQueries.getLoopAll();
     
     // Broadcast to all clients
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('playlist_update', { playlist, loopAll });
+    try {
+      const io = getIO();
+      io.emit('playlist_update', playlist);
+      logger.info({ 
+        playlistLength: playlist.length,
+        trackIds: playlist.map(t => t.id),
+        event: 'playlist_update'
+      }, '📢 Broadcasting playlist update to all clients');
+    } catch (error) {
+      logger.warn({ error: error.message }, '⚠️ Could not broadcast playlist update');
     }
     
     res.json({ playlist, loopAll });
@@ -69,9 +77,15 @@ router.post('/reorder', (req, res) => {
     const loopAll = playlistQueries.getLoopAll();
     
     // Broadcast to all clients
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('playlist_update', { playlist, loopAll });
+    try {
+      const io = getIO();
+      io.emit('playlist_update', playlist);
+      logger.info({ 
+        playlistLength: playlist.length,
+        event: 'playlist_update'
+      }, '📢 Broadcasting playlist reorder to all clients');
+    } catch (error) {
+      logger.warn({ error: error.message }, '⚠️ Could not broadcast playlist reorder');
     }
     
     res.json({ playlist, loopAll });
@@ -90,9 +104,12 @@ router.delete('/', (req, res) => {
     playlistQueries.clear();
     
     // Broadcast to all clients
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('playlist_update', { playlist: [], loopAll: playlistQueries.getLoopAll() });
+    try {
+      const io = getIO();
+      io.emit('playlist_update', []);
+      logger.info({ event: 'playlist_update' }, '📢 Broadcasting playlist clear to all clients');
+    } catch (error) {
+      logger.warn({ error: error.message }, '⚠️ Could not broadcast playlist clear');
     }
     
     res.json({ message: 'Playlist cleared' });
@@ -117,9 +134,15 @@ router.post('/loop', (req, res) => {
     playlistQueries.setLoopAll(enabled);
     
     // Broadcast to all clients
-    const io = req.app.get('io');
-    if (io) {
+    try {
+      const io = getIO();
       io.emit('playlist_settings_update', { loopAll: enabled });
+      logger.info({ 
+        loopAll: enabled,
+        event: 'playlist_settings_update'
+      }, '📢 Broadcasting loop setting to all clients');
+    } catch (error) {
+      logger.warn({ error: error.message }, '⚠️ Could not broadcast loop setting');
     }
     
     res.json({ loopAll: enabled });

@@ -93,6 +93,16 @@ class WebSocketService {
       this.emit('library_update', data);
     });
 
+    this.socket.on('playlist_update', (data) => {
+      console.log('🎵 Playlist update received from server:', data);
+      this.emit('playlist_update', data);
+    });
+
+    this.socket.on('playlist_settings_update', (data) => {
+      console.log('⚙️ Playlist settings update received:', data);
+      this.emit('playlist_settings_update', data);
+    });
+
     return this.socket;
   }
 

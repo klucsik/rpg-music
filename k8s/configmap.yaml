@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rpg-music-config
+  namespace: rpg-music
+  labels:
+    app: rpg-music-streaming
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  MUSIC_DIR: "/app/music"
+  DB_PATH: "/app/data/rpg-music.db"
+  LOG_LEVEL: "info"
+  POSITION_CHECK_INTERVAL: "3000"

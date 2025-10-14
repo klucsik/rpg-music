@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Node modules (will be installed in Docker)
+node_modules
+frontend/node_modules
+backend/node_modules
+
+# Build artifacts
+frontend/dist
+backend/public
+
+# Development files
+*.log
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database (will be created in container)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Documentation
+IMPLEMENTATION_PLAN.md
+README.md
+
+# Test files
+test-client.html
+backend/test-client.html

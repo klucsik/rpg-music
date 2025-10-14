@@ -150,7 +150,10 @@ async function start() {
     
     // Initialize WebSocket server
     logger.info('Initializing WebSocket server...');
-    initWebSocket(httpServer);
+    const { io } = initWebSocket(httpServer);
+    
+    // Attach io to app for use in routes
+    app.set('io', io);
     logger.info('WebSocket server ready');
     
     // Start file watcher

@@ -24,14 +24,14 @@
       >
         🗑️ Clear
       </button>
-      <button 
+      <!-- <button 
         @click="toggleLoop" 
         class="action-btn"
         :class="{ 'loop-active': loopAll }"
         title="Loop all tracks"
       >
         🔁 {{ loopAll ? 'Loop: On' : 'Loop: Off' }}
-      </button>
+      </button> -->
       <button 
         @click="showSaveDialog = true" 
         :disabled="playlist.length === 0"
@@ -429,14 +429,14 @@ export default {
 
     // Handle playlist updates from server (other clients)
     const handlePlaylistUpdate = (data) => {
-      console.log('Received playlist update from server:', data);
-      if (data.playlist !== undefined) {
-        playlist.value = data.playlist;
-        console.log('Updated local playlist, now has', playlist.value.length, 'tracks');
-      }
-      if (data.loopAll !== undefined) {
-        loopAll.value = data.loopAll;
-        console.log('Updated loop state:', loopAll.value);
+      console.log('🔄 Received playlist update from server:', data);
+      // Data is now just the playlist array
+      if (Array.isArray(data)) {
+        playlist.value = data;
+        console.log('✅ Updated local playlist, now has', playlist.value.length, 'tracks');
+        console.log('📋 Playlist tracks:', playlist.value.map(t => t.title));
+      } else {
+        console.warn('⚠️ Received non-array playlist update:', data);
       }
     };
 

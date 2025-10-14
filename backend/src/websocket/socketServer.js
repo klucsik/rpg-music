@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import SyncController from './syncController.js';
+import { playlistQueries } from '../db/database.js';
 
 let io = null;
 let syncController = null;
@@ -40,11 +41,24 @@ export function initWebSocket(httpServer) {
 
     // Send current state to new client
     socket.emit('state_sync', syncController.getState());
+    
+    // Send current playlist and settings to new client
+    const playlist = playlistQueries.getAll();
+    const loopAll = playlistQueries.getLoopAll();
+    socket.emit('playlist_update', playlist);
+    socket.emit('playlist_settings_update', { loopAll });
+    logger.debug({ clientId, playlistLength: playlist.length }, 'Sent initial playlist to new client');
 
     // Handle client requests for current state
     socket.on('request_state', () => {
       logger.debug({ clientId }, 'Client requested state');
       socket.emit('state_sync', syncController.getState());
+      
+      // Also send playlist state
+      const playlist = playlistQueries.getAll();
+      const loopAll = playlistQueries.getLoopAll();
+      socket.emit('playlist_update', playlist);
+      socket.emit('playlist_settings_update', { loopAll });
     });
 
     // Handle position reports from clients
