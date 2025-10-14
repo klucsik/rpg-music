@@ -12,3 +12,4 @@ data:
   DB_PATH: "/app/data/rpg-music.db"
   LOG_LEVEL: "info"
   POSITION_CHECK_INTERVAL: "3000"
+  ADD_MUSIC_URL: ""  # URL for "Add Music" button (opens in new tab)

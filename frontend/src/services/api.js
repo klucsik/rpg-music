@@ -167,6 +167,10 @@ class ApiClient {
   }
 
   // System
+  async getConfig() {
+    return this.request('/api/config');
+  }
+
   async getStats() {
     return this.request('/api/stats');
   }

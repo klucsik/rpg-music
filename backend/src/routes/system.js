@@ -42,6 +42,7 @@ router.get('/config', (req, res) => {
     maxDriftSeconds: config.maxDriftSeconds,
     positionCheckInterval: config.positionCheckInterval,
     defaultBitrate: config.defaultBitrate,
+    addMusicUrl: config.addMusicUrl,
   });
 });
 

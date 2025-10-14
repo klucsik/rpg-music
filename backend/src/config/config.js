@@ -34,6 +34,9 @@ const config = {
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',
   
+  // External Links
+  addMusicUrl: process.env.ADD_MUSIC_URL || '',
+  
   // Computed
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
