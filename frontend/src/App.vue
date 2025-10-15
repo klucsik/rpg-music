@@ -44,6 +44,7 @@
             ref="trackListRef"
             :current-track-id="currentTrackId"
             @play-track="onPlayTrack"
+            @add-track-next="onAddTrackNext"
           />
         </div>
 
@@ -200,6 +201,17 @@ export default {
       foldersWithPaths.value = folders;
     };
 
+    const onAddTrackNext = async (track) => {
+      // Add track to playlist after current track
+      if (playlistRef.value) {
+        playlistRef.value.addTrackAfterCurrent(track);
+        // Wait a moment for the playlist to update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        // Then play the track
+        onPlayTrack(track);
+      }
+    };
+
     // Computed properties for next/previous track availability
     const hasNext = computed(() => {
       // Check if playlist has tracks first
@@ -259,6 +271,7 @@ export default {
       onPlayFolder,
       onSaveToFolder,
       onFoldersLoaded,
+      onAddTrackNext,
     };
   },
 };

@@ -213,6 +213,27 @@ export default {
       savePlaylistToServer();
     };
 
+    const addTrackAfterCurrent = (track) => {
+      // Find the current track index
+      const currentIndex = playlist.value.findIndex(t => t.id === props.currentTrackId);
+      
+      // Remove track if it already exists anywhere
+      const existingIndex = playlist.value.findIndex(t => t.id === track.id);
+      if (existingIndex !== -1) {
+        playlist.value.splice(existingIndex, 1);
+        // Adjust currentIndex if we removed a track before it
+        if (existingIndex <= currentIndex && currentIndex >= 0) {
+          currentIndex--;
+        }
+      }
+      
+      // Insert after current track (or at the beginning if no current track)
+      const insertIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+      playlist.value.splice(insertIndex, 0, track);
+      
+      savePlaylistToServer();
+    };
+
     const removeTrack = (index) => {
       playlist.value.splice(index, 1);
       savePlaylistToServer();
@@ -470,6 +491,7 @@ export default {
       isCurrentTrack,
       addTrack,
       addTracks,
+      addTrackAfterCurrent,
       removeTrack,
       clearPlaylist,
       confirmClear,

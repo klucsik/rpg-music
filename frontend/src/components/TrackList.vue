@@ -42,6 +42,7 @@
         draggable="true"
         @dragstart="onDragStart($event, track)"
         @dragend="onDragEnd"
+        @dblclick="onDoubleClick(track)"
       >
         <div class="drag-handle">⋮⋮</div>
         <div class="track-icon">
@@ -93,7 +94,7 @@ export default {
       default: null,
     },
   },
-  emits: ['play-track'],
+  emits: ['play-track', 'add-track-next'],
   setup(props, { emit }) {
     const tracks = ref([]);
     const pagination = ref(null);
@@ -207,6 +208,11 @@ export default {
       draggingTrackId.value = null;
     };
 
+    const onDoubleClick = (track) => {
+      // Emit event to add track to playlist after current track and play it
+      emit('add-track-next', track);
+    };
+
     const handleLibraryUpdate = (data) => {
       console.log('Library update in TrackList:', data);
       // Reload tracks to show changes
@@ -251,6 +257,7 @@ export default {
       hasPrevious,
       onDragStart,
       onDragEnd,
+      onDoubleClick,
     };
   },
 };
@@ -366,6 +373,11 @@ export default {
 .track-item:hover {
   background: #333;
   transform: translateX(5px);
+  cursor: pointer;
+}
+
+.track-item:active {
+  transform: translateX(3px) scale(0.98);
 }
 
 .track-item.playing {
