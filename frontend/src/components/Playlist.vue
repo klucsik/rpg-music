@@ -68,7 +68,7 @@
         @dragend="onTrackDragEnd"
         @dragover.prevent="onTrackDragOver($event, index)"
         @drop="onTrackDrop($event, index)"
-        @click="playTrack(track)"
+        @dblclick="playTrack(track)"
       >
         <div class="track-number">{{ index + 1 }}</div>
         <div class="track-icon">
