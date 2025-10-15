@@ -50,9 +50,9 @@
           <span v-else>🎵</span>
         </div>
         <div class="track-info">
-          <div class="track-title">{{ track.title }}</div>
+          <div class="track-title" :title="track.title">{{ track.title }}</div>
           <div class="track-meta">
-            <span v-if="track.artist" class="artist">{{ track.artist }}</span>
+            <span v-if="track.artist" class="artist" :title="track.artist">{{ track.artist }}</span>
             <span class="duration">{{ formatDuration(track.duration) }}</span>
           </div>
         </div>
