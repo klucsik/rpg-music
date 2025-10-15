@@ -515,7 +515,7 @@ export default {
 .playlist {
   background: #2a2a2a;
   border-radius: 12px;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -526,13 +526,14 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .playlist-header h3 {
   margin: 0;
   color: #e0e0e0;
-  font-size: 1.3em;
+  font-size: 1.2em;
 }
 
 .playlist-info {
@@ -542,19 +543,20 @@ export default {
 
 .playlist-actions {
   display: flex;
-  gap: 8px;
-  margin-bottom: 15px;
+  gap: 6px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .action-btn {
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: #444;
   border: none;
   border-radius: 6px;
   color: #e0e0e0;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.85em;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -627,9 +629,9 @@ export default {
 .playlist-track {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  margin-bottom: 4px;
+  gap: 8px;
+  padding: 8px;
+  margin-bottom: 3px;
   background: #1a1a1a;
   border-radius: 6px;
   cursor: move;
@@ -692,7 +694,7 @@ export default {
 
 .track-title {
   color: #e0e0e0;
-  font-size: 0.95em;
+  font-size: 0.9em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -700,7 +702,7 @@ export default {
 
 .track-meta {
   color: #999;
-  font-size: 0.85em;
+  font-size: 0.8em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -839,5 +841,44 @@ export default {
 
 .confirm-dialog p {
   margin: 15px 0;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .playlist {
+    padding: 12px;
+  }
+  
+  .playlist-header h3 {
+    font-size: 1.1em;
+  }
+  
+  .action-btn {
+    padding: 5px 8px;
+    font-size: 0.8em;
+  }
+  
+  .playlist-track {
+    padding: 6px;
+    gap: 6px;
+  }
+  
+  .track-number {
+    font-size: 0.8em;
+    min-width: 20px;
+  }
+  
+  .track-icon {
+    font-size: 1em;
+    min-width: 20px;
+  }
+  
+  .track-title {
+    font-size: 0.85em;
+  }
+  
+  .track-meta {
+    font-size: 0.75em;
+  }
 }
 </style>

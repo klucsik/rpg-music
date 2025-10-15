@@ -304,21 +304,22 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .app-header {
   background: #2a2a2a;
-  padding: 20px;
+  padding: 12px 20px;
   border-bottom: 2px solid #4CAF50;
   display: flex;
   justify-content: space-between;
   align-items: center;
+
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.8em;
+  font-size: 1.6em;
   color: #4CAF50;
 }
 
@@ -345,30 +346,32 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  max-width: 1800px;
+  max-width: 1920px;
   width: 100%;
   margin: 0 auto;
-  padding: 20px;
-  gap: 20px;
+  padding: 15px;
+  gap: 15px;
   overflow: hidden;
-  min-height: 0; /* Important for flexbox scrolling */
+  min-height: 0;
 }
 
-.top-row,
-.bottom-row {
+/* Audio player always visible at top */
+.top-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  min-height: 0;
-  overflow: hidden;
+  gap: 15px;
+  flex-shrink: 0; /* Don't shrink the player */
+  max-height: 320px; /* Limit player height */
 }
 
-.top-row {
-  height: 35vh; /* More height for top row (player + playlist) */
-}
-
+/* Main content area - scrollable lists */
 .bottom-row {
-  flex: 1; /* Take remaining space */
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  min-height: 400px;
+  overflow: hidden;
 }
 
 .player-column,
@@ -378,31 +381,86 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
-.player-column {
-  overflow: visible; /* Player doesn't need scroll constraint */
-}
-
-.playlist-column,
 .library-column,
 .folders-column {
-  overflow: hidden; /* These need to contain their scrollable content */
-  height: 100%;
+  min-height: 400px;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1400px) {
+  .top-row,
+  .bottom-row {
+    gap: 12px;
+  }
+  
+  .app-main {
+    padding: 12px;
+  }
 }
 
 @media (max-width: 1024px) {
-  .top-row,
-  .bottom-row {
-    grid-template-columns: 1fr;
+  .app-header h1 {
+    font-size: 1.4em;
   }
   
   .top-row {
-    gap: 15px;
+    grid-template-columns: 1fr;
+    max-height: none;
   }
   
   .playlist-column {
-    max-height: 400px;
+    max-height: 300px;
+    min-height: 250px;
+  }
+  
+  .bottom-row {
+    grid-template-columns: 1fr;
+    min-height: 300px;
+  }
+  
+  .library-column,
+  .folders-column {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 15px;
+  }
+  
+  .app-header h1 {
+    font-size: 1.2em;
+  }
+  
+  .stats {
+    gap: 5px;
+  }
+  
+  .app-main {
+    padding: 10px;
+    gap: 10px;
+  }
+  
+  .top-row,
+  .bottom-row {
+    gap: 10px;
+  }
+  
+  .playlist-column {
+    min-height: 200px;
+  }
+  
+  .bottom-row {
+    min-height: 250px;
+  }
+  
+  .library-column,
+  .folders-column {
+    min-height: 250px;
   }
 }
 

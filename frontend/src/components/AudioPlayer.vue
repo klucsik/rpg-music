@@ -128,7 +128,7 @@ export default {
     const currentTrack = ref(null);
     const currentTime = ref(0);
     const duration = ref(0);
-    const volume = ref(0.7);
+    const volume = ref(0.3);
     const isConnected = ref(false);
     const clientId = ref(null);
     const expectedPosition = ref(null);
@@ -564,22 +564,35 @@ export default {
 .audio-player {
   background: #2a2a2a;
   border-radius: 12px;
-  padding: 20px;
-  margin: 20px 0;
+  padding: 15px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+
+  min-height: 280px;
 }
 
 .now-playing {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 10px;
+  min-height: 60px;
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
 }
 
 .track-info h2 {
-  margin: 0;
-  font-size: 1.5em;
+  margin: 0 0 4px 0;
+  font-size: 1.3em;
   color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .track-info h2.no-track {
@@ -587,18 +600,23 @@ export default {
 }
 
 .track-info .artist {
-  margin: 5px 0 0 0;
+  margin: 0;
   color: #999;
+  font-size: 0.95em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sync-status {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-radius: 6px;
   background: #1a1a1a;
-  font-size: 0.9em;
+  font-size: 0.85em;
+  flex-shrink: 0;
 }
 
 .sync-status.connected {
@@ -649,7 +667,10 @@ audio {
 }
 
 .player-controls {
-  margin: 20px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .progress-bar {
@@ -658,7 +679,7 @@ audio {
   border-radius: 4px;
   cursor: pointer;
   position: relative;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .progress-fill {
@@ -683,28 +704,28 @@ audio {
   display: flex;
   justify-content: space-between;
   color: #999;
-  font-size: 0.9em;
-  margin-bottom: 15px;
+  font-size: 0.85em;
+  margin-bottom: 10px;
 }
 
 .control-buttons {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  margin: 15px 0;
+  gap: 8px;
+  margin: 10px 0;
 }
 
 .control-btn {
-  padding: 12px 20px;
+  padding: 10px 16px;
   background: #1a1a1a;
   border: 1px solid #444;
   border-radius: 8px;
   color: #e0e0e0;
-  font-size: 1.2em;
+  font-size: 1.1em;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 50px;
+  min-width: 45px;
 }
 
 .control-btn:hover:not(:disabled) {
@@ -726,8 +747,8 @@ audio {
 .control-btn.play-pause {
   background: #4CAF50;
   border-color: #4CAF50;
-  padding: 12px 24px;
-  font-size: 1.3em;
+  padding: 10px 20px;
+  font-size: 1.2em;
 }
 
 .control-btn.play-pause:hover:not(:disabled) {
@@ -744,7 +765,8 @@ audio {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 15px;
+  margin-top: auto;
+  padding-top: 10px;
 }
 
 .volume-icon {
@@ -758,10 +780,12 @@ audio {
   background: #1a1a1a;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -847,5 +871,51 @@ audio {
 .audio-unlock-overlay:hover .unlock-content {
   transform: scale(1.05);
   transition: transform 0.2s ease;
+}
+
+/* Responsive styles */
+@media (max-width: 1024px) {
+  .audio-player {
+    padding: 12px;
+  }
+  
+  .track-info h2 {
+    font-size: 1.1em;
+  }
+  
+  .control-btn {
+    padding: 8px 12px;
+    font-size: 1em;
+  }
+  
+  .control-btn.play-pause {
+    padding: 8px 16px;
+    font-size: 1.1em;
+  }
+}
+
+@media (max-width: 768px) {
+  .now-playing {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .sync-status {
+    align-self: flex-end;
+  }
+  
+  .control-buttons {
+    gap: 6px;
+  }
+  
+  .control-btn {
+    padding: 6px 10px;
+    font-size: 0.95em;
+    min-width: 40px;
+  }
+  
+  .control-btn.play-pause {
+    padding: 6px 14px;
+  }
 }
 </style>

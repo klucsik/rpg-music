@@ -267,7 +267,7 @@ export default {
 .track-list {
   background: #2a2a2a;
   border-radius: 12px;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -275,20 +275,21 @@ export default {
 }
 
 .list-header {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .list-header h3 {
   margin: 0;
   color: #e0e0e0;
-  font-size: 1.3em;
+  font-size: 1.2em;
 }
 
 .add-music-btn {
@@ -317,17 +318,17 @@ export default {
 }
 
 .search-bar {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 15px;
+  padding: 8px 12px;
   background: #1a1a1a;
   border: 1px solid #444;
   border-radius: 8px;
   color: #e0e0e0;
-  font-size: 1em;
+  font-size: 0.95em;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -361,11 +362,11 @@ export default {
 .track-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
   background: #1a1a1a;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -420,16 +421,17 @@ export default {
 .track-title {
   color: #e0e0e0;
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.95em;
 }
 
 .track-meta {
   display: flex;
   gap: 10px;
-  font-size: 0.85em;
+  font-size: 0.8em;
   color: #999;
 }
 
@@ -444,10 +446,11 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 15px;
-  margin-top: 20px;
-  padding-top: 20px;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid #444;
+  flex-shrink: 0;
 }
 
 .page-btn {
@@ -472,5 +475,38 @@ export default {
 
 .page-info {
   color: #999;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .track-list {
+    padding: 12px;
+  }
+  
+  .list-header h3 {
+    font-size: 1.1em;
+  }
+  
+  .add-music-btn {
+    padding: 6px 12px;
+    font-size: 0.8em;
+  }
+  
+  .track-item {
+    padding: 6px 8px;
+    gap: 8px;
+  }
+  
+  .drag-handle {
+    display: none;
+  }
+  
+  .track-title {
+    font-size: 0.9em;
+  }
+  
+  .track-meta {
+    font-size: 0.75em;
+  }
 }
 </style>

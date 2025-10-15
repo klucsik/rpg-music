@@ -485,7 +485,7 @@ export default {
 .folder-manager {
   background: #2a2a2a;
   border-radius: 12px;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -496,23 +496,24 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .manager-header h3 {
   margin: 0;
   color: #e0e0e0;
-  font-size: 1.3em;
+  font-size: 1.2em;
 }
 
 .create-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #4CAF50;
   border: none;
   border-radius: 6px;
   color: white;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.85em;
   transition: background 0.2s;
 }
 
