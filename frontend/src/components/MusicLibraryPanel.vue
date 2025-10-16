@@ -15,6 +15,16 @@
         <div class="library-header">
           <div class="header-row">
             <h3>Music Library</h3>
+            <a 
+              v-if="addMusicUrl" 
+              :href="addMusicUrl" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              class="add-music-btn"
+              title="Add new music"
+            >
+              ➕ Add Music
+            </a>
             <div class="library-search">
               <input
                 v-model="searchQuery"
@@ -66,9 +76,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
+import api from '../services/api';
 
 const props = defineProps({
   currentTrack: {
@@ -91,6 +102,20 @@ const {
   autoLoad: true,
   enableWebSocket: false
 });
+
+// Add Music URL
+const addMusicUrl = ref('');
+
+// Load system config to get add music URL
+const loadSystemInfo = async () => {
+  try {
+    const response = await api.getConfig();
+    addMusicUrl.value = response.addMusicUrl || '';
+    console.log('Add Music URL loaded:', addMusicUrl.value);
+  } catch (err) {
+    console.error('Failed to load system config:', err);
+  }
+};
 
 // Search functionality
 const searchQuery = ref('');
@@ -137,6 +162,11 @@ const formatDuration = (seconds) => {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
+
+// Load system info on mount
+onMounted(() => {
+  loadSystemInfo();
+});
 
 // Expose refresh method
 defineExpose({
@@ -189,6 +219,26 @@ defineExpose({
 .library-search input:focus {
   outline: none;
   border-color: #42b983;
+}
+
+.add-music-btn {
+  padding: 6px 12px;
+  background: #4CAF50;
+  border: 1px solid #4CAF50;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.9em;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-music-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
 }
 
 .library-stats {
