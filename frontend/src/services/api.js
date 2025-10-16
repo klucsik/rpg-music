@@ -147,13 +147,6 @@ class ApiClient {
     });
   }
 
-  async setVolume(volume) {
-    return this.request('/api/playback/volume', {
-      method: 'POST',
-      body: JSON.stringify({ volume }),
-    });
-  }
-
   async toggleRepeat() {
     return this.request('/api/playback/repeat', { method: 'POST' });
   }

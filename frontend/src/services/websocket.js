@@ -78,11 +78,6 @@ class WebSocketService {
       this.emit('stop', data);
     });
 
-    this.socket.on('volume_change', (data) => {
-      this.calculateTimeOffset(data.serverTimestamp);
-      this.emit('volume_change', data);
-    });
-
     this.socket.on('repeat_mode_change', (data) => {
       this.calculateTimeOffset(data.serverTimestamp);
       this.emit('repeat_mode_change', data);

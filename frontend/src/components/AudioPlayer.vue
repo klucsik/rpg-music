@@ -128,7 +128,11 @@ export default {
     const currentTrack = ref(null);
     const currentTime = ref(0);
     const duration = ref(0);
-    const volume = ref(0.3);
+    
+    // Load saved volume from localStorage or default to 0.3
+    const savedVolume = parseFloat(localStorage.getItem('rpg-music-volume') || '0.3');
+    const volume = ref(savedVolume);
+    
     const isConnected = ref(false);
     const clientId = ref(null);
     const expectedPosition = ref(null);
@@ -288,6 +292,10 @@ export default {
       if (audioElement.value) {
         audioElement.value.volume = newVolume;
       }
+      
+      // Save volume to localStorage
+      localStorage.setItem('rpg-music-volume', newVolume.toString());
+      console.log('Volume saved to localStorage:', newVolume);
     };
 
     // WebSocket event handlers
@@ -317,11 +325,6 @@ export default {
         } else if (data.playbackState === 'paused') {
           audioElement.value.pause();
         }
-      }
-      
-      volume.value = data.volume;
-      if (audioElement.value) {
-        audioElement.value.volume = data.volume;
       }
       
       // Sync repeat mode
@@ -451,14 +454,6 @@ export default {
       audioElement.value.currentTime = 0;
     };
 
-    const handleVolumeChange = (data) => {
-      console.log('Volume change:', data);
-      volume.value = data.volume;
-      if (audioElement.value) {
-        audioElement.value.volume = data.volume;
-      }
-    };
-
     const handleRepeatModeChange = (data) => {
       console.log('Repeat mode change:', data);
       repeatMode.value = data.repeatMode;
@@ -501,7 +496,6 @@ export default {
       websocket.on('resume', handleResume);
       websocket.on('seek', handleSeek);
       websocket.on('stop', handleStop);
-      websocket.on('volume_change', handleVolumeChange);
       websocket.on('repeat_mode_change', handleRepeatModeChange);
       websocket.on('position_check', handlePositionCheck);
       
@@ -521,7 +515,6 @@ export default {
       websocket.off('resume', handleResume);
       websocket.off('seek', handleSeek);
       websocket.off('stop', handleStop);
-      websocket.off('volume_change', handleVolumeChange);
       websocket.off('repeat_mode_change', handleRepeatModeChange);
       websocket.off('position_check', handlePositionCheck);
     });
