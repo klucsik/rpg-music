@@ -23,8 +23,23 @@
               class="add-music-btn"
               title="Add new music"
             >
-              ➕ Add Music
+              ➕ Add
             </a>
+            <div class="order-controls">
+              <select v-model="orderBy" class="order-select" title="Sort by">
+                <option value="title">Name</option>
+                <option value="artist">Artist</option>
+                <option value="album">Album</option>
+                <option value="created_at">Date Added</option>
+              </select>
+              <button 
+                @click="orderDir = orderDir === 'asc' ? 'desc' : 'asc'" 
+                class="order-direction-btn"
+                :title="orderDir === 'asc' ? 'Ascending' : 'Descending'"
+              >
+                {{ orderDir === 'asc' ? '↑' : '↓' }}
+              </button>
+            </div>
             <div class="library-search">
               <input
                 v-model="searchQuery"
@@ -76,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
@@ -90,6 +105,10 @@ const props = defineProps({
 
 const emit = defineEmits(['track-play']);
 
+// Ordering state
+const orderBy = ref(localStorage.getItem('library-order-by') || 'title');
+const orderDir = ref(localStorage.getItem('library-order-dir') || 'asc');
+
 // Use the collection composable for the library
 const {
   tracks,
@@ -100,7 +119,16 @@ const {
   refresh
 } = useTrackCollection('library', {
   autoLoad: true,
-  enableWebSocket: false
+  enableWebSocket: false,
+  orderBy,
+  orderDir
+});
+
+// Watch for order changes and reload
+watch([orderBy, orderDir], () => {
+  localStorage.setItem('library-order-by', orderBy.value);
+  localStorage.setItem('library-order-dir', orderDir.value);
+  loadCollection();
 });
 
 // Add Music URL
@@ -239,6 +267,56 @@ defineExpose({
 .add-music-btn:hover {
   background: #45a049;
   border-color: #45a049;
+}
+
+.order-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.order-select {
+  padding: 6px 8px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.85em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.order-select:hover {
+  border-color: #4CAF50;
+}
+
+.order-select:focus {
+  outline: none;
+  border-color: #4CAF50;
+}
+
+.order-direction-btn {
+  padding: 6px 10px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-direction-btn:hover {
+  background: #333;
+  border-color: #4CAF50;
+}
+
+.order-direction-btn:active {
+  background: #4CAF50;
 }
 
 .library-stats {

@@ -425,7 +425,7 @@ const handleContainerDrop = (event) => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 6px;
+   padding: 1px 1px; 
   margin-bottom: 1px;
   background: transparent;
   border-bottom: 1px solid #333;

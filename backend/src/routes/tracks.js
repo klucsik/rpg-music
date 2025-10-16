@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * Get all tracks with pagination and search
- * GET /api/tracks?page=1&limit=50&search=mysong&folder_id=uuid
+ * GET /api/tracks?page=1&limit=50&search=mysong&folder_id=uuid&order_by=title&order_dir=asc
  */
 router.get('/', (req, res) => {
   try {
@@ -15,6 +15,8 @@ router.get('/', (req, res) => {
     const offset = (page - 1) * limit;
     const search = req.query.search;
     const folderId = req.query.folder_id;
+    const orderBy = req.query.order_by || 'title';
+    const orderDir = req.query.order_dir || 'asc';
     
     let tracks;
     let total;
@@ -28,8 +30,8 @@ router.get('/', (req, res) => {
       tracks = trackQueries.search(search, limit);
       total = tracks.length;
     } else {
-      // Get all tracks
-      tracks = trackQueries.getAll(limit, offset);
+      // Get all tracks with ordering
+      tracks = trackQueries.getAll(limit, offset, orderBy, orderDir);
       total = trackQueries.count();
     }
     

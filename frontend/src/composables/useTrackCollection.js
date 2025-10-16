@@ -11,7 +11,9 @@ export function useTrackCollection(collectionId, options = {}) {
   const {
     autoLoad = true,
     enableWebSocket = false,
-    webSocketEvents = []
+    webSocketEvents = [],
+    orderBy = ref('title'),
+    orderDir = ref('asc')
   } = options;
 
   // State
@@ -46,7 +48,15 @@ export function useTrackCollection(collectionId, options = {}) {
     error.value = null;
 
     try {
-      const data = await api.getCollection(actualId);
+      // Build query params for ordering (library only)
+      const params = new URLSearchParams();
+      if (orderBy.value) params.append('order_by', orderBy.value);
+      if (orderDir.value) params.append('order_dir', orderDir.value);
+      
+      const queryString = params.toString();
+      const url = `/api/collections/${actualId}${queryString ? `?${queryString}` : ''}`;
+      
+      const data = await api.request(url);
       collection.value = data;
       tracks.value = data.tracks || [];
     } catch (err) {

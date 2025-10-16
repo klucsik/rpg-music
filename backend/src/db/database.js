@@ -107,12 +107,26 @@ export const trackQueries = {
   },
 
   /**
-   * Get all tracks with pagination
+   * Get all tracks with pagination and ordering
+   * @param {number} limit - Maximum number of tracks
+   * @param {number} offset - Offset for pagination
+   * @param {string} orderBy - Order field: 'title', 'created_at'
+   * @param {string} orderDir - Order direction: 'asc', 'desc'
    */
-  getAll: (limit = 100, offset = 0) => {
+  getAll: (limit = 100, offset = 0, orderBy = 'title', orderDir = 'asc') => {
+    // Validate orderBy to prevent SQL injection
+    const validOrderBy = ['title', 'artist', 'album', 'created_at', 'updated_at'];
+    const validOrderDir = ['asc', 'desc'];
+    
+    const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'title';
+    const safeOrderDir = validOrderDir.includes(orderDir.toLowerCase()) ? orderDir.toLowerCase() : 'asc';
+    
+    // Use COLLATE NOCASE for text fields
+    const collate = ['title', 'artist', 'album'].includes(safeOrderBy) ? ' COLLATE NOCASE' : '';
+    
     const stmt = getDb().prepare(`
       SELECT * FROM tracks 
-      ORDER BY title COLLATE NOCASE
+      ORDER BY ${safeOrderBy}${collate} ${safeOrderDir.toUpperCase()}
       LIMIT ? OFFSET ?
     `);
     return stmt.all(limit, offset);

@@ -9,9 +9,11 @@ import logger from '../utils/logger.js';
  * Get a collection by ID with its tracks
  * @param {Object} db - Database instance
  * @param {string} collectionId - Collection ID
+ * @param {string} orderBy - Order field for library: 'title', 'artist', 'album', 'created_at'
+ * @param {string} orderDir - Order direction: 'asc', 'desc'
  * @returns {Object|null} Collection with tracks array
  */
-function getCollection(db, collectionId) {
+function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc') {
   try {
     // Get collection metadata
     const collection = db.prepare(`
@@ -25,7 +27,17 @@ function getCollection(db, collectionId) {
     // Get tracks in this collection
     let tracks;
     if (collection.type === 'library') {
-      // Library shows all tracks, ordered by title
+      // Validate ordering parameters to prevent SQL injection
+      const validOrderBy = ['title', 'artist', 'album', 'created_at', 'updated_at'];
+      const validOrderDir = ['asc', 'desc'];
+      
+      const safeOrderBy = validOrderBy.includes(orderBy) ? orderBy : 'title';
+      const safeOrderDir = validOrderDir.includes(orderDir.toLowerCase()) ? orderDir.toLowerCase() : 'asc';
+      
+      // Use COLLATE NOCASE for text fields
+      const collate = ['title', 'artist', 'album'].includes(safeOrderBy) ? ' COLLATE NOCASE' : '';
+      
+      // Library shows all tracks with custom ordering
       tracks = db.prepare(`
         SELECT 
           t.*,
@@ -33,7 +45,7 @@ function getCollection(db, collectionId) {
           ct.added_at
         FROM tracks t
         LEFT JOIN collection_tracks ct ON t.id = ct.track_id AND ct.collection_id = ?
-        ORDER BY t.title ASC, t.artist ASC
+        ORDER BY t.${safeOrderBy}${collate} ${safeOrderDir.toUpperCase()}
       `).all(collectionId);
     } else {
       // Other collections show only their tracks, ordered by position
