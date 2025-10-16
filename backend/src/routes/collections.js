@@ -182,14 +182,18 @@ export default () => {
   /**
    * DELETE /api/collections/:id/tracks/:trackId
    * Remove a track from a collection
+   * Optional query param: position (to remove specific instance when duplicates exist)
    */
   router.delete('/:id/tracks/:trackId', (req, res) => {
     try {
       const db = getDb();
+      const position = req.query.position !== undefined ? parseInt(req.query.position, 10) : null;
+      
       const collection = collectionQueries.removeTrack(
         db, 
         req.params.id, 
-        req.params.trackId
+        req.params.trackId,
+        position
       );
 
       res.json(collection);

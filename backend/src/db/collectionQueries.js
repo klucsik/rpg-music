@@ -210,20 +210,6 @@ function addTrack(db, collectionId, trackId, position = null) {
   try {
     const now = Math.floor(Date.now() / 1000);
 
-    // Check if track already exists in collection
-    const existing = db.prepare(`
-      SELECT position FROM collection_tracks 
-      WHERE collection_id = ? AND track_id = ?
-    `).get(collectionId, trackId);
-
-    if (existing) {
-      // Track already in collection, just reorder if position specified
-      if (position !== null && position !== existing.position) {
-        return reorderTrack(db, collectionId, trackId, position);
-      }
-      return getCollection(db, collectionId);
-    }
-
     // Get max position if position not specified
     if (position === null) {
       const maxPos = db.prepare(`
@@ -232,27 +218,45 @@ function addTrack(db, collectionId, trackId, position = null) {
         WHERE collection_id = ?
       `).get(collectionId);
       position = maxPos.max_pos + 1;
-    } else {
-      // Shift existing tracks down
-      db.prepare(`
-        UPDATE collection_tracks 
-        SET position = position + 1 
-        WHERE collection_id = ? AND position >= ?
-      `).run(collectionId, position);
     }
 
-    // Insert track
-    db.prepare(`
-      INSERT INTO collection_tracks (collection_id, track_id, position, added_at)
-      VALUES (?, ?, ?, ?)
-    `).run(collectionId, trackId, position, now);
+    // Use a transaction to avoid UNIQUE constraint violations
+    const addTransaction = db.transaction(() => {
+      if (position !== null) {
+        // Get all tracks that need to be shifted (using row id)
+        const tracksToShift = db.prepare(`
+          SELECT id, position 
+          FROM collection_tracks 
+          WHERE collection_id = ? AND position >= ?
+          ORDER BY position DESC
+        `).all(collectionId, position);
 
-    // Update collection timestamp
-    db.prepare(`
-      UPDATE track_collections 
-      SET updated_at = ? 
-      WHERE id = ?
-    `).run(now, collectionId);
+        // Shift them down one by one in reverse order
+        for (const track of tracksToShift) {
+          db.prepare(`
+            UPDATE collection_tracks 
+            SET position = ? 
+            WHERE id = ?
+          `).run(track.position + 1, track.id);
+        }
+      }
+
+      // Insert track
+      db.prepare(`
+        INSERT INTO collection_tracks (collection_id, track_id, position, added_at)
+        VALUES (?, ?, ?, ?)
+      `).run(collectionId, trackId, position, now);
+
+      // Update collection timestamp
+      db.prepare(`
+        UPDATE track_collections 
+        SET updated_at = ? 
+        WHERE id = ?
+      `).run(now, collectionId);
+    });
+
+    // Execute transaction
+    addTransaction();
 
     return getCollection(db, collectionId);
   } catch (error) {
@@ -265,42 +269,73 @@ function addTrack(db, collectionId, trackId, position = null) {
  * Remove a track from a collection
  * @param {Object} db - Database instance
  * @param {string} collectionId - Collection ID
- * @param {string} trackId - Track ID
+ * @param {string} trackId - Track ID (removes first occurrence)
+ * @param {number} position - Optional: specify position to remove specific instance
  * @returns {Object} Updated collection
  */
-function removeTrack(db, collectionId, trackId) {
+function removeTrack(db, collectionId, trackId, position = null) {
   try {
     const now = Math.floor(Date.now() / 1000);
 
-    // Get position of track to remove
-    const track = db.prepare(`
-      SELECT position FROM collection_tracks 
-      WHERE collection_id = ? AND track_id = ?
-    `).get(collectionId, trackId);
+    // Use transaction to avoid UNIQUE constraint violations
+    const removeTransaction = db.transaction(() => {
+      let trackPosition;
 
-    if (!track) {
-      return getCollection(db, collectionId);
-    }
+      if (position !== null) {
+        // Remove by position
+        trackPosition = position;
+        db.prepare(`
+          DELETE FROM collection_tracks 
+          WHERE collection_id = ? AND position = ?
+        `).run(collectionId, position);
+      } else {
+        // Get position of first occurrence of track
+        const track = db.prepare(`
+          SELECT position FROM collection_tracks 
+          WHERE collection_id = ? AND track_id = ?
+          ORDER BY position ASC
+          LIMIT 1
+        `).get(collectionId, trackId);
 
-    // Delete track
-    db.prepare(`
-      DELETE FROM collection_tracks 
-      WHERE collection_id = ? AND track_id = ?
-    `).run(collectionId, trackId);
+        if (!track) {
+          return; // Nothing to remove
+        }
 
-    // Shift remaining tracks up
-    db.prepare(`
-      UPDATE collection_tracks 
-      SET position = position - 1 
-      WHERE collection_id = ? AND position > ?
-    `).run(collectionId, track.position);
+        trackPosition = track.position;
 
-    // Update collection timestamp
-    db.prepare(`
-      UPDATE track_collections 
-      SET updated_at = ? 
-      WHERE id = ?
-    `).run(now, collectionId);
+        // Delete first occurrence
+        db.prepare(`
+          DELETE FROM collection_tracks 
+          WHERE collection_id = ? AND track_id = ? AND position = ?
+        `).run(collectionId, trackId, trackPosition);
+      }
+
+      // Get tracks that need to shift up
+      const tracksToShift = db.prepare(`
+        SELECT id, position 
+        FROM collection_tracks 
+        WHERE collection_id = ? AND position > ?
+        ORDER BY position ASC
+      `).all(collectionId, trackPosition);
+
+      // Shift remaining tracks up one by one
+      for (const track of tracksToShift) {
+        db.prepare(`
+          UPDATE collection_tracks 
+          SET position = ? 
+          WHERE id = ?
+        `).run(track.position - 1, track.id);
+      }
+
+      // Update collection timestamp
+      db.prepare(`
+        UPDATE track_collections 
+        SET updated_at = ? 
+        WHERE id = ?
+      `).run(now, collectionId);
+    });
+
+    removeTransaction();
 
     return getCollection(db, collectionId);
   } catch (error) {
@@ -313,53 +348,92 @@ function removeTrack(db, collectionId, trackId) {
  * Reorder a track within a collection
  * @param {Object} db - Database instance
  * @param {string} collectionId - Collection ID
- * @param {string} trackId - Track ID
+ * @param {string} trackId - Track ID (or position if passed as oldPosition parameter)
  * @param {number} newPosition - New position
+ * @param {number} oldPosition - Optional: specify old position directly (for duplicates)
  * @returns {Object} Updated collection
  */
-function reorderTrack(db, collectionId, trackId, newPosition) {
+function reorderTrack(db, collectionId, trackId, newPosition, oldPosition = null) {
   try {
     const now = Math.floor(Date.now() / 1000);
 
-    // Get current position
-    const track = db.prepare(`
-      SELECT position FROM collection_tracks 
-      WHERE collection_id = ? AND track_id = ?
-    `).get(collectionId, trackId);
+    // If oldPosition not provided, find the track by trackId (first occurrence)
+    if (oldPosition === null) {
+      const track = db.prepare(`
+        SELECT position FROM collection_tracks 
+        WHERE collection_id = ? AND track_id = ?
+        ORDER BY position ASC
+        LIMIT 1
+      `).get(collectionId, trackId);
 
-    if (!track) {
-      throw new Error('Track not found in collection');
+      if (!track) {
+        throw new Error('Track not found in collection');
+      }
+      oldPosition = track.position;
     }
-
-    const oldPosition = track.position;
     if (oldPosition === newPosition) {
       return getCollection(db, collectionId);
     }
 
     // Use a transaction for atomic reordering
     const reorder = db.transaction(() => {
-      if (newPosition > oldPosition) {
-        // Moving down: shift tracks up between old and new position
-        db.prepare(`
-          UPDATE collection_tracks 
-          SET position = position - 1 
-          WHERE collection_id = ? AND position > ? AND position <= ?
-        `).run(collectionId, oldPosition, newPosition);
-      } else {
-        // Moving up: shift tracks down between new and old position
-        db.prepare(`
-          UPDATE collection_tracks 
-          SET position = position + 1 
-          WHERE collection_id = ? AND position >= ? AND position < ?
-        `).run(collectionId, newPosition, oldPosition);
+      // First, get the row ID of the track we're moving (by position)
+      const movingTrack = db.prepare(`
+        SELECT id FROM collection_tracks 
+        WHERE collection_id = ? AND position = ?
+      `).get(collectionId, oldPosition);
+
+      if (!movingTrack) {
+        throw new Error('Track not found at specified position');
       }
 
-      // Update the track's position
+      // Set the moving track to a temporary negative position to avoid conflicts
+      db.prepare(`
+        UPDATE collection_tracks 
+        SET position = -1 
+        WHERE id = ?
+      `).run(movingTrack.id);
+
+      if (newPosition > oldPosition) {
+        // Moving down: shift tracks up between old and new position
+        const tracksToShift = db.prepare(`
+          SELECT id, position 
+          FROM collection_tracks 
+          WHERE collection_id = ? AND position > ? AND position <= ?
+          ORDER BY position ASC
+        `).all(collectionId, oldPosition, newPosition);
+
+        for (const track of tracksToShift) {
+          db.prepare(`
+            UPDATE collection_tracks 
+            SET position = ? 
+            WHERE id = ?
+          `).run(track.position - 1, track.id);
+        }
+      } else {
+        // Moving up: shift tracks down between new and old position
+        const tracksToShift = db.prepare(`
+          SELECT id, position 
+          FROM collection_tracks 
+          WHERE collection_id = ? AND position >= ? AND position < ?
+          ORDER BY position DESC
+        `).all(collectionId, newPosition, oldPosition);
+
+        for (const track of tracksToShift) {
+          db.prepare(`
+            UPDATE collection_tracks 
+            SET position = ? 
+            WHERE id = ?
+          `).run(track.position + 1, track.id);
+        }
+      }
+
+      // Finally, update the moved track to its new position
       db.prepare(`
         UPDATE collection_tracks 
         SET position = ? 
-        WHERE collection_id = ? AND track_id = ?
-      `).run(newPosition, collectionId, trackId);
+        WHERE id = ?
+      `).run(newPosition, movingTrack.id);
 
       // Update collection timestamp
       db.prepare(`

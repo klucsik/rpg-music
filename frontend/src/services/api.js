@@ -96,6 +96,79 @@ class ApiClient {
     return this.request(`/api/folders/${folderId}/tracks`);
   }
 
+  // Collections (New Unified API)
+  async getCollections(type = null, parentId = null) {
+    const params = {};
+    if (type) params.type = type;
+    if (parentId !== null) params.parent_id = parentId;
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/api/collections${queryString ? `?${queryString}` : ''}`);
+  }
+
+  async getCollection(collectionId) {
+    return this.request(`/api/collections/${collectionId}`);
+  }
+
+  async getCollectionTracks(collectionId, limit = 50, offset = 0) {
+    return this.request(`/api/collections/${collectionId}/tracks?limit=${limit}&offset=${offset}`);
+  }
+
+  async createCollection(name, type, parentId = null, sortOrder = 0, isOrdered = true) {
+    return this.request('/api/collections', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        type,
+        parent_id: parentId,
+        sort_order: sortOrder,
+        is_ordered: isOrdered ? 1 : 0
+      }),
+    });
+  }
+
+  async updateCollection(collectionId, updates) {
+    return this.request(`/api/collections/${collectionId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteCollection(collectionId) {
+    return this.request(`/api/collections/${collectionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addTrackToCollection(collectionId, trackId, position = null) {
+    return this.request(`/api/collections/${collectionId}/tracks`, {
+      method: 'POST',
+      body: JSON.stringify({ track_id: trackId, position }),
+    });
+  }
+
+  async removeTrackFromCollection(collectionId, trackId, position = null) {
+    const url = position !== null 
+      ? `/api/collections/${collectionId}/tracks/${trackId}?position=${position}`
+      : `/api/collections/${collectionId}/tracks/${trackId}`;
+    
+    return this.request(url, {
+      method: 'DELETE',
+    });
+  }
+
+  async reorderTrackInCollection(collectionId, trackId, position) {
+    return this.request(`/api/collections/${collectionId}/tracks/${trackId}/position`, {
+      method: 'PUT',
+      body: JSON.stringify({ position }),
+    });
+  }
+
+  async clearCollectionTracks(collectionId) {
+    return this.request(`/api/collections/${collectionId}/tracks`, {
+      method: 'DELETE',
+    });
+  }
+
   // Playlist
   async getPlaylist() {
     return this.request('/api/playlist');

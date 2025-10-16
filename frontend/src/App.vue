@@ -26,12 +26,10 @@
 
         <!-- Right: Current Playlist -->
         <div class="playlist-column">
-          <Playlist
+          <PlaylistPanel
             ref="playlistRef"
-            :current-track-id="currentTrackId"
-            :folders-with-paths="foldersWithPaths"
-            @play-track="onPlayTrack"
-            @save-to-folder="onSaveToFolder"
+            :current-track="currentTrack"
+            @track-play="onPlayTrack"
           />
         </div>
       </section>
@@ -40,20 +38,19 @@
       <section class="bottom-row">
         <!-- Left: Music Library -->
         <div class="library-column">
-          <TrackList
-            ref="trackListRef"
-            :current-track-id="currentTrackId"
-            @play-track="onPlayTrack"
-            @add-track-next="onAddTrackNext"
+          <MusicLibraryPanel
+            ref="libraryRef"
+            :current-track="currentTrack"
+            @track-play="onAddTrackAndPlay"
           />
         </div>
 
         <!-- Right: Folder Management -->
         <div class="folders-column">
-          <FolderManager
+          <FolderManagerPanel
             ref="folderManagerRef"
-            @play-folder="onPlayFolder"
-            @folders-loaded="onFoldersLoaded"
+            :current-track="currentTrack"
+            @track-play="onAddTrackAndPlay"
           />
         </div>
       </section>
@@ -64,9 +61,9 @@
 <script>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import AudioPlayer from './components/AudioPlayer.vue';
-import TrackList from './components/TrackList.vue';
-import FolderManager from './components/FolderManager.vue';
-import Playlist from './components/Playlist.vue';
+import MusicLibraryPanel from './components/MusicLibraryPanel.vue';
+import FolderManagerPanel from './components/FolderManagerPanel.vue';
+import PlaylistPanel from './components/PlaylistPanel.vue';
 import api from './services/api';
 import websocket from './services/websocket';
 
@@ -74,16 +71,16 @@ export default {
   name: 'App',
   components: {
     AudioPlayer,
-    TrackList,
-    FolderManager,
-    Playlist,
+    MusicLibraryPanel,
+    FolderManagerPanel,
+    PlaylistPanel,
   },
   setup() {
     const currentTrackId = ref(null);
-    const trackListRef = ref(null);
+    const currentTrack = ref(null);
+    const libraryRef = ref(null);
     const folderManagerRef = ref(null);
     const playlistRef = ref(null);
-    const foldersWithPaths = ref([]);
     const stats = ref({
       tracks: 0,
       clients: 0,
@@ -107,131 +104,69 @@ export default {
       try {
         await api.playTrack(track.id);
         currentTrackId.value = track.id;
+        currentTrack.value = track;
       } catch (error) {
         console.error('Failed to play track:', error);
         alert('Failed to play track. Check console for details.');
       }
     };
 
-    const playNextTrack = () => {
-      // Check if playlist has tracks, use it first
-      if (playlistRef.value && playlistRef.value.playlist.length > 0) {
-        const currentIndex = playlistRef.value.playlist.findIndex(t => t.id === currentTrackId.value);
-        if (currentIndex >= 0 && currentIndex < playlistRef.value.playlist.length - 1) {
-          const nextTrack = playlistRef.value.playlist[currentIndex + 1];
-          onPlayTrack(nextTrack);
+    const onAddTrackAndPlay = async (track) => {
+      // Add track to playlist and play it
+      try {
+        await api.addTrackToCollection('current-playlist', track.id);
+        // Refresh playlist to show new track
+        if (playlistRef.value) {
+          await playlistRef.value.refresh();
         }
-      } else if (trackListRef.value) {
-        trackListRef.value.playNextTrack();
+        // Play the track
+        await onPlayTrack(track);
+      } catch (error) {
+        console.error('Failed to add and play track:', error);
       }
     };
 
+    const playNextTrack = () => {
+      // TODO: Implement with new playlist structure
+      console.log('Next track - to be implemented');
+    };
+
     const playPreviousTrack = () => {
-      // Check if playlist has tracks, use it first
-      if (playlistRef.value && playlistRef.value.playlist.length > 0) {
-        const currentIndex = playlistRef.value.playlist.findIndex(t => t.id === currentTrackId.value);
-        if (currentIndex > 0) {
-          const prevTrack = playlistRef.value.playlist[currentIndex - 1];
-          onPlayTrack(prevTrack);
-        }
-      } else if (trackListRef.value) {
-        trackListRef.value.playPreviousTrack();
-      }
+      // TODO: Implement with new playlist structure
+      console.log('Previous track - to be implemented');
     };
 
     const handleStateSync = (data) => {
       if (data.currentTrack) {
         currentTrackId.value = data.currentTrack.id;
+        currentTrack.value = data.currentTrack;
       } else {
         currentTrackId.value = null;
+        currentTrack.value = null;
       }
     };
 
     const handlePlayTrack = (data) => {
       currentTrackId.value = data.trackId;
+      // Fetch full track info if needed
+      if (data.trackId) {
+        api.getTrack(data.trackId)
+          .then(track => {
+            currentTrack.value = track;
+          })
+          .catch(err => console.error('Failed to fetch track info:', err));
+      }
     };
 
     const handleStop = () => {
       currentTrackId.value = null;
-    };
-
-    const onPlayFolder = async (folder) => {
-      try {
-        // Get folder details with tracks
-        const response = await api.getFolder(folder.id);
-        if (response.tracks && response.tracks.length > 0) {
-          // Add all tracks to playlist
-          if (playlistRef.value) {
-            playlistRef.value.addTracks(response.tracks);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to load folder tracks:', error);
-      }
-    };
-
-    const onSaveToFolder = async ({ folderId, trackIds }) => {
-      try {
-        // Get folder details
-        const folder = await api.getFolder(folderId);
-        
-        // Remove all existing tracks from folder
-        if (folder.tracks && folder.tracks.length > 0) {
-          for (const track of folder.tracks) {
-            await api.removeTrackFromFolder(folderId, track.id);
-          }
-        }
-        
-        // Add new tracks
-        for (const trackId of trackIds) {
-          await api.addTrackToFolder(folderId, trackId);
-        }
-        
-        // Refresh folder manager
-        if (folderManagerRef.value) {
-          folderManagerRef.value.loadFolders();
-        }
-      } catch (error) {
-        console.error('Failed to save playlist to folder:', error);
-        alert('Failed to save playlist to folder');
-      }
-    };
-
-    const onFoldersLoaded = (folders) => {
-      foldersWithPaths.value = folders;
-    };
-
-    const onAddTrackNext = async (track) => {
-      // Add track to playlist after current track
-      if (playlistRef.value) {
-        playlistRef.value.addTrackAfterCurrent(track);
-        // Wait a moment for the playlist to update
-        await new Promise(resolve => setTimeout(resolve, 100));
-        // Then play the track
-        onPlayTrack(track);
-      }
+      currentTrack.value = null;
     };
 
     // Computed properties for next/previous track availability
-    const hasNext = computed(() => {
-      // Check if playlist has tracks first
-      if (playlistRef.value && playlistRef.value.playlist.length > 0) {
-        const currentIndex = playlistRef.value.playlist.findIndex(t => t.id === currentTrackId.value);
-        return currentIndex >= 0 && currentIndex < playlistRef.value.playlist.length - 1;
-      }
-      // Fall back to track list
-      return trackListRef.value?.hasNext() || false;
-    });
-
-    const hasPrevious = computed(() => {
-      // Check if playlist has tracks first
-      if (playlistRef.value && playlistRef.value.playlist.length > 0) {
-        const currentIndex = playlistRef.value.playlist.findIndex(t => t.id === currentTrackId.value);
-        return currentIndex > 0;
-      }
-      // Fall back to track list
-      return trackListRef.value?.hasPrevious() || false;
-    });
+    // TODO: Implement properly with new collection structure
+    const hasNext = computed(() => false);
+    const hasPrevious = computed(() => false);
 
     onMounted(() => {
       // Load initial stats
@@ -258,20 +193,17 @@ export default {
 
     return {
       currentTrackId,
-      trackListRef,
+      currentTrack,
+      libraryRef,
       folderManagerRef,
       playlistRef,
-      foldersWithPaths,
       stats,
       hasNext,
       hasPrevious,
       onPlayTrack,
+      onAddTrackAndPlay,
       playNextTrack,
       playPreviousTrack,
-      onPlayFolder,
-      onSaveToFolder,
-      onFoldersLoaded,
-      onAddTrackNext,
     };
   },
 };

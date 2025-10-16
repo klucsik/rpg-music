@@ -15,12 +15,13 @@ CREATE TABLE IF NOT EXISTS track_collections (
 );
 
 -- Many-to-many relationship between tracks and collections with ordering
+-- Allows duplicate tracks in the same collection (e.g., same song multiple times in playlist)
 CREATE TABLE IF NOT EXISTS collection_tracks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     collection_id TEXT NOT NULL,
     track_id TEXT NOT NULL,
     position INTEGER NOT NULL,
     added_at INTEGER NOT NULL,
-    PRIMARY KEY (collection_id, track_id),
     UNIQUE (collection_id, position),
     FOREIGN KEY (collection_id) REFERENCES track_collections(id) ON DELETE CASCADE,
     FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
