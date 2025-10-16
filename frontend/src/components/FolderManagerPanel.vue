@@ -7,24 +7,27 @@
       </button>
     </div>
 
-    <div class="folder-list">
-      <div
-        v-for="folder in folders"
+    <div class="folder-tree">
+      <FolderNodeSimple
+        v-for="folder in rootFolders"
         :key="folder.id"
-        :class="['folder-item', { active: selectedFolder?.id === folder.id }]"
-        @click="selectFolder(folder)"
-      >
-        <span class="folder-icon">📁</span>
-        <span class="folder-name">{{ folder.name }}</span>
-        <span class="folder-count">({{ getTrackCount(folder.id) }})</span>
-        <button 
-          @click.stop="deleteFolder(folder)"
-          class="delete-btn"
-          title="Delete folder"
-        >
-          ×
-        </button>
-      </div>
+        :folder="folder"
+        :all-folders="folders"
+        :expanded-folder-ids="expandedFolderIds"
+        :active-folder-id="expandedFolderId"
+        :folder-tracks="folderTracks"
+        :current-track="currentTrack"
+        :loading-tracks="loadingTracks"
+        @toggle="toggleFolder"
+        @edit="startEditFolder"
+        @delete="confirmDeleteFolder"
+        @play-folder="playFolder"
+        @add-to-playlist="addFolderToPlaylist"
+        @track-dblclick="handleTrackDoubleClick"
+        @track-drop="handleDropTrack"
+        @track-reorder="handleReorderTrack"
+        @track-remove="handleRemoveTrack"
+      />
 
       <div v-if="folders.length === 0" class="empty-folders">
         <p>No folders yet</p>
@@ -32,53 +35,60 @@
       </div>
     </div>
 
-    <!-- Selected Folder Tracks -->
-    <div v-if="selectedFolder" class="folder-tracks">
-      <OrderedTrackList
-        :tracks="folderTracks"
-        :current-track="currentTrack"
-        :allow-reorder="true"
-        :allow-remove="true"
-        :allow-drop="true"
-        :show-position="false"
-        :enable-double-click="true"
-        :enable-single-click="false"
-        @track-dblclick="handleTrackDoubleClick"
-        @track-remove="handleRemoveTrack"
-        @track-reorder="handleReorderTrack"
-        @track-drop="handleDropTrack"
-      >
-        <template #header>
-          <div class="folder-tracks-header">
-            <h4>{{ selectedFolder.name }}</h4>
-          </div>
-        </template>
+    <!-- Create/Edit Folder Dialog -->
+    <div v-if="showCreateDialog || showEditDialog" class="dialog-overlay" @click="showCreateDialog = false; showEditDialog = false">
+      <div class="dialog" @click.stop>
+        <h3>{{ showEditDialog ? 'Edit Folder' : 'Create New Folder' }}</h3>
+        
+        <div class="form-group">
+          <label>Folder Name</label>
+          <input
+            v-model="newFolderName"
+            type="text"
+            placeholder="Folder name"
+            @keyup.enter="showEditDialog ? saveEditFolder() : createFolder()"
+            ref="folderNameInput"
+          />
+        </div>
 
-        <template #empty>
-          <div class="empty-folder-tracks">
-            <p>No tracks in this folder</p>
-            <p class="empty-hint">Drag tracks from the library to add them</p>
-          </div>
-        </template>
-      </OrderedTrackList>
+        <div class="form-group">
+          <label>Parent Folder (optional)</label>
+          <select v-model="parentFolderId">
+            <option :value="null">-- Root Level --</option>
+            <option
+              v-for="folder in folders"
+              :key="folder.id"
+              :value="folder.id"
+              :disabled="showEditDialog && folder.id === editingFolder?.id"
+            >
+              {{ folder.name }}
+            </option>
+          </select>
+        </div>
+        
+        <div class="dialog-actions">
+          <button @click="showCreateDialog = false; showEditDialog = false" class="cancel-btn">Cancel</button>
+          <button 
+            @click="showEditDialog ? saveEditFolder() : createFolder()" 
+            :disabled="!newFolderName.trim()" 
+            class="create-btn"
+          >
+            {{ showEditDialog ? 'Save' : 'Create' }}
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Create Folder Dialog -->
-    <div v-if="showCreateDialog" class="dialog-overlay" @click="showCreateDialog = false">
+    <!-- Delete Confirmation Dialog -->
+    <div v-if="showDeleteDialog" class="dialog-overlay" @click="showDeleteDialog = false">
       <div class="dialog" @click.stop>
-        <h3>Create New Folder</h3>
-        <input
-          v-model="newFolderName"
-          type="text"
-          placeholder="Folder name"
-          @keyup.enter="createFolder"
-          ref="folderNameInput"
-        />
+        <h3>Delete Folder?</h3>
+        <p>Are you sure you want to delete "{{ folderToDelete?.name }}"?</p>
+        <p class="warning">This will not delete the tracks, only the folder organization.</p>
+        
         <div class="dialog-actions">
-          <button @click="showCreateDialog = false" class="cancel-btn">Cancel</button>
-          <button @click="createFolder" :disabled="!newFolderName.trim()" class="create-btn">
-            Create
-          </button>
+          <button @click="showDeleteDialog = false" class="cancel-btn">Cancel</button>
+          <button @click="deleteFolder" class="delete-btn">Delete</button>
         </div>
       </div>
     </div>
@@ -87,7 +97,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import OrderedTrackList from './OrderedTrackList.vue';
+import FolderNodeSimple from './FolderNodeSimple.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
 
@@ -102,13 +112,19 @@ const emit = defineEmits(['track-play']);
 
 // Folder management
 const folders = ref([]);
-const selectedFolder = ref(null);
+const expandedFolderIds = ref(new Set());
+const expandedFolderId = ref(null); // Keep for track loading (which folder's tracks are currently shown)
 const loadingFolders = ref(false);
 const showCreateDialog = ref(false);
+const showEditDialog = ref(false);
+const showDeleteDialog = ref(false);
 const newFolderName = ref('');
+const editingFolder = ref(null);
+const folderToDelete = ref(null);
+const parentFolderId = ref(null);
 const folderNameInput = ref(null);
 
-// Track collection for selected folder
+// Track collection for expanded folder
 const {
   tracks: folderTracks,
   loading: loadingTracks,
@@ -118,7 +134,7 @@ const {
   handleTrackReorder: handleTrackReorderComposable,
   refresh: refreshFolderTracks
 } = useTrackCollection(
-  computed(() => selectedFolder.value?.id || null),
+  computed(() => expandedFolderId.value || null),
   { autoLoad: false }
 );
 
@@ -138,10 +154,17 @@ const loadFolders = async () => {
 };
 
 /**
+ * Get root folders (folders without parents)
+ */
+const rootFolders = computed(() => {
+  return folders.value.filter(f => !f.parent_id);
+});
+
+/**
  * Get track count for a folder
  */
 const getTrackCount = (folderId) => {
-  if (selectedFolder.value?.id === folderId) {
+  if (expandedFolderId.value === folderId) {
     return folderTracks.value.length;
   }
   const folder = folders.value.find(f => f.id === folderId);
@@ -149,12 +172,60 @@ const getTrackCount = (folderId) => {
 };
 
 /**
- * Select a folder to view its tracks
+ * Toggle folder expansion (show/hide tracks)
  */
-const selectFolder = async (folder) => {
-  selectedFolder.value = folder;
-  await nextTick();
-  await refreshFolderTracks();
+const toggleFolder = async (folder) => {
+  // Toggle expansion state
+  if (expandedFolderIds.value.has(folder.id)) {
+    expandedFolderIds.value.delete(folder.id);
+    // If this was the folder showing tracks, clear it
+    if (expandedFolderId.value === folder.id) {
+      expandedFolderId.value = null;
+    }
+  } else {
+    expandedFolderIds.value.add(folder.id);
+    // Set this as the active folder for track display
+    expandedFolderId.value = folder.id;
+    await nextTick();
+    await refreshFolderTracks();
+  }
+  
+  // Trigger reactivity by creating a new Set
+  expandedFolderIds.value = new Set(expandedFolderIds.value);
+};
+
+/**
+ * Start editing a folder
+ */
+const startEditFolder = (folder) => {
+  editingFolder.value = folder;
+  newFolderName.value = folder.name;
+  parentFolderId.value = folder.parent_id;
+  showEditDialog.value = true;
+};
+
+/**
+ * Save folder edits
+ */
+const saveEditFolder = async () => {
+  if (!editingFolder.value) return;
+  const name = newFolderName.value.trim();
+  if (!name) return;
+
+  try {
+    await api.updateCollection(editingFolder.value.id, {
+      name,
+      parent_id: parentFolderId.value
+    });
+    showEditDialog.value = false;
+    editingFolder.value = null;
+    newFolderName.value = '';
+    parentFolderId.value = null;
+    await loadFolders();
+  } catch (err) {
+    console.error('Failed to update folder:', err);
+    alert('Failed to update folder');
+  }
 };
 
 /**
@@ -165,8 +236,9 @@ const createFolder = async () => {
   if (!name) return;
 
   try {
-    await api.createCollection(name, 'folder');
+    await api.createCollection(name, 'folder', parentFolderId.value);
     newFolderName.value = '';
+    parentFolderId.value = null;
     showCreateDialog.value = false;
     await loadFolders();
   } catch (err) {
@@ -176,20 +248,80 @@ const createFolder = async () => {
 };
 
 /**
+ * Confirm folder deletion
+ */
+const confirmDeleteFolder = (folder) => {
+  folderToDelete.value = folder;
+  showDeleteDialog.value = true;
+};
+
+/**
  * Delete a folder
  */
-const deleteFolder = async (folder) => {
-  if (!confirm(`Delete folder "${folder.name}"?`)) return;
+const deleteFolder = async () => {
+  if (!folderToDelete.value) return;
 
   try {
-    await api.deleteCollection(folder.id);
-    if (selectedFolder.value?.id === folder.id) {
-      selectedFolder.value = null;
+    await api.deleteCollection(folderToDelete.value.id);
+    if (expandedFolderId.value === folderToDelete.value.id) {
+      expandedFolderId.value = null;
     }
+    showDeleteDialog.value = false;
+    folderToDelete.value = null;
     await loadFolders();
   } catch (err) {
     console.error('Failed to delete folder:', err);
     alert('Failed to delete folder');
+  }
+};
+
+/**
+ * Play all tracks in a folder
+ */
+const playFolder = async (folder) => {
+  try {
+    // Clear current playlist and add all folder tracks
+    await api.clearCollectionTracks('current-playlist');
+    const folderData = await api.getCollection(folder.id);
+    for (const track of folderData.tracks) {
+      await api.addTrackToCollection('current-playlist', track.id);
+    }
+  } catch (err) {
+    console.error('Failed to play folder:', err);
+  }
+};
+
+/**
+ * Add folder tracks to playlist
+ */
+const addFolderToPlaylist = async (folder) => {
+  try {
+    const folderData = await api.getCollection(folder.id);
+    for (const track of folderData.tracks) {
+      await api.addTrackToCollection('current-playlist', track.id);
+    }
+  } catch (err) {
+    console.error('Failed to add folder to playlist:', err);
+  }
+};
+
+/**
+ * Handle remove track event from FolderNode
+ */
+const handleRemoveTrackFromFolder = async (data) => {
+  // data contains { folderId, track, index, position }
+  if (!data.folderId) return;
+  
+  try {
+    await api.removeTrackFromCollection(data.folderId, data.track.id, data.position);
+    // Refresh if it's the expanded folder
+    if (expandedFolderId.value === data.folderId) {
+      await refreshFolderTracks();
+    }
+    // Reload folders to update counts
+    await loadFolders();
+  } catch (err) {
+    console.error('Failed to remove track from folder:', err);
   }
 };
 
@@ -204,10 +336,10 @@ const handleTrackDoubleClick = (track) => {
  * Handle removing a track from folder
  */
 const handleRemoveTrack = async (data) => {
-  if (!selectedFolder.value) return;
+  if (!data.folderId) return;
   
   try {
-    // data contains { track, index, position }
+    // data contains { folderId, track, index, position }
     await removeTrack(data.track.id, data.position);
   } catch (err) {
     console.error('Failed to remove track from folder:', err);
@@ -217,10 +349,12 @@ const handleRemoveTrack = async (data) => {
 /**
  * Handle reordering tracks in folder
  */
-const handleReorderTrack = async ({ track, oldIndex, newIndex }) => {
-  if (!selectedFolder.value) return;
+const handleReorderTrack = async ({ folderId, track, oldIndex, newIndex }) => {
+  // Only allow reorder in the currently expanded folder
+  if (!folderId || folderId !== expandedFolderId.value) return;
   
   try {
+    // Use the composable's reorder function
     await handleTrackReorderComposable(track, oldIndex, newIndex);
   } catch (err) {
     console.error('Failed to reorder track in folder:', err);
@@ -228,13 +362,28 @@ const handleReorderTrack = async ({ track, oldIndex, newIndex }) => {
 };
 
 /**
- * Handle dropping a track from library
+ * Handle dropping a track from library or another list
  */
-const handleDropTrack = async ({ track, position }) => {
-  if (!selectedFolder.value) return;
+const handleDropTrack = async ({ folderId, trackId, track, position }) => {
+  if (!folderId) {
+    console.error('No folderId provided to handleDropTrack');
+    return;
+  }
   
   try {
-    await handleTrackDropComposable(track, position);
+    console.log('Dropping track:', { folderId, trackId, position, expandedFolderId: expandedFolderId.value });
+    
+    // If dropping on the currently expanded folder, use the composable
+    if (folderId === expandedFolderId.value) {
+      console.log('Using composable for expanded folder');
+      await handleTrackDropComposable(track, position);
+    } else {
+      // Otherwise, add directly via API
+      console.log('Using API for non-expanded folder');
+      await api.addTrackToCollection(folderId, trackId, position);
+      // Reload folder list to update track counts
+      await loadFolders();
+    }
   } catch (err) {
     console.error('Failed to add track to folder:', err);
   }
@@ -296,7 +445,7 @@ defineExpose({
   background: #35a372;
 }
 
-.folder-list {
+.folder-tree {
   flex: 0 0 auto;
   max-height: 200px;
   overflow-y: auto;
@@ -408,6 +557,44 @@ defineExpose({
 .dialog h3 {
   margin: 0 0 16px 0;
   font-size: 1.1em;
+}
+
+.dialog p {
+  margin: 0 0 12px 0;
+  color: #aaa;
+}
+
+.dialog .warning {
+  color: #ff9800;
+  font-size: 0.9em;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: #ccc;
+  font-size: 0.9em;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  background: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.95em;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #42b983;
 }
 
 .dialog input {

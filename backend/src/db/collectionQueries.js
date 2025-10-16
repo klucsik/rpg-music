@@ -68,24 +68,31 @@ function getCollection(db, collectionId) {
  */
 function getCollections(db, type = null, parentId = null) {
   try {
-    let query = 'SELECT * FROM track_collections WHERE 1=1';
+    let query = `
+      SELECT 
+        tc.*,
+        COUNT(ct.id) as track_count
+      FROM track_collections tc
+      LEFT JOIN collection_tracks ct ON tc.id = ct.collection_id
+      WHERE 1=1
+    `;
     const params = [];
 
     if (type) {
-      query += ' AND type = ?';
+      query += ' AND tc.type = ?';
       params.push(type);
     }
 
     if (parentId !== null) {
       if (parentId === '') {
-        query += ' AND parent_id IS NULL';
+        query += ' AND tc.parent_id IS NULL';
       } else {
-        query += ' AND parent_id = ?';
+        query += ' AND tc.parent_id = ?';
         params.push(parentId);
       }
     }
 
-    query += ' ORDER BY sort_order ASC, name ASC';
+    query += ' GROUP BY tc.id ORDER BY tc.sort_order ASC, tc.name ASC';
 
     return db.prepare(query).all(...params);
   } catch (error) {

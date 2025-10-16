@@ -6,8 +6,27 @@
 import express from 'express';
 import { getDb } from '../db/database.js';
 import * as collectionQueries from '../db/collectionQueries.js';
+import { getIO } from '../websocket/socketServer.js';
+import logger from '../utils/logger.js';
 
 const router = express.Router();
+
+/**
+ * Emit playlist update event if collection is the current playlist
+ */
+const emitPlaylistUpdate = (collectionId) => {
+  if (collectionId === 'current-playlist') {
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('playlist_update', { collectionId });
+        logger.info({ event: 'playlist_update' }, '📢 Broadcasting playlist update to all clients');
+      }
+    } catch (err) {
+      logger.error({ error: err }, 'Failed to emit playlist update');
+    }
+  }
+};
 
 export default () => {
   // Get db lazily in each route to avoid initialization order issues
@@ -172,6 +191,9 @@ export default () => {
         position !== undefined ? position : null
       );
 
+      // Emit WebSocket event if this is the current playlist
+      emitPlaylistUpdate(req.params.id);
+
       res.json(collection);
     } catch (error) {
       console.error('Error adding track to collection:', error);
@@ -195,6 +217,9 @@ export default () => {
         req.params.trackId,
         position
       );
+
+      // Emit WebSocket event if this is the current playlist
+      emitPlaylistUpdate(req.params.id);
 
       res.json(collection);
     } catch (error) {
@@ -223,6 +248,9 @@ export default () => {
         position
       );
 
+      // Emit WebSocket event if this is the current playlist
+      emitPlaylistUpdate(req.params.id);
+
       res.json(collection);
     } catch (error) {
       console.error('Error reordering track in collection:', error);
@@ -238,6 +266,10 @@ export default () => {
     try {
       const db = getDb();
       const collection = collectionQueries.clearTracks(db, req.params.id);
+      
+      // Emit WebSocket event if this is the current playlist
+      emitPlaylistUpdate(req.params.id);
+      
       res.json(collection);
     } catch (error) {
       console.error('Error clearing collection tracks:', error);
