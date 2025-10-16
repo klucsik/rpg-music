@@ -16,36 +16,38 @@
     >
       <template #header>
         <div class="playlist-header">
-          <h3>Current Playlist</h3>
-          <div class="playlist-controls">
-            <button 
-              @click="handleClear" 
-              :disabled="isEmpty || loading"
-              class="clear-btn"
-              title="Clear playlist"
-            >
-              Clear
-            </button>
-            <button
-              @click="handleShuffle"
-              :disabled="isEmpty || loading"
-              class="shuffle-btn"
-              title="Shuffle playlist"
-            >
-              🔀 Shuffle
-            </button>
-            <button
-              @click="showSaveDialog = true"
-              :disabled="isEmpty || loading"
-              class="save-btn"
-              title="Save to folder"
-            >
-              💾 Save to Folder
-            </button>
-          </div>
-          <div class="playlist-stats">
-            {{ trackCount }} tracks
-            <span v-if="loading">• Loading...</span>
+          <div class="header-row">
+            <h3>Current Playlist</h3>
+            <div class="playlist-controls">
+              <button 
+                @click="handleClear" 
+                :disabled="isEmpty || loading"
+                class="clear-btn"
+                title="Clear playlist"
+              >
+                Clear
+              </button>
+              <button
+                @click="handleShuffle"
+                :disabled="isEmpty || loading"
+                class="shuffle-btn"
+                title="Shuffle playlist"
+              >
+                🔀 Shuffle
+              </button>
+              <button
+                @click="showSaveDialog = true"
+                :disabled="isEmpty || loading"
+                class="save-btn"
+                title="Save to folder"
+              >
+                💾 Save to Folder
+              </button>
+            </div>
+            <div class="playlist-stats">
+              {{ trackCount }} tracks
+              <span v-if="loading">• Loading...</span>
+            </div>
           </div>
         </div>
       </template>
@@ -287,36 +289,44 @@ defineExpose({
 }
 
 .playlist-header {
-  padding: 15px;
+  padding: 12px;
   border-bottom: 1px solid #333;
   background: #222;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+
 .playlist-header h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.1em;
+  margin: 0;
+  font-size: 1em;
+  color: #e0e0e0;
+  white-space: nowrap;
 }
 
 .playlist-controls {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  flex: 1;
 }
 
 .playlist-controls button {
-  padding: 6px 12px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
+  padding: 5px 10px;
+  background: #444;
+  border: none;
+  border-radius: 6px;
   color: white;
   cursor: pointer;
-  font-size: 0.9em;
-  transition: all 0.2s;
+  font-size: 0.85em;
+  transition: background 0.2s;
 }
 
 .playlist-controls button:hover:not(:disabled) {
-  background: #333;
-  border-color: #555;
+  background: #4CAF50;
 }
 
 .playlist-controls button:disabled {
@@ -325,13 +335,13 @@ defineExpose({
 }
 
 .clear-btn:hover:not(:disabled) {
-  background: #d32f2f !important;
-  border-color: #d32f2f !important;
+  background: #f44336 !important;
 }
 
 .playlist-stats {
   font-size: 0.85em;
   color: #999;
+  white-space: nowrap;
 }
 
 .empty-playlist {
@@ -345,13 +355,11 @@ defineExpose({
 }
 
 .save-btn {
-  background: #1976d2 !important;
-  border-color: #1976d2 !important;
+  background: #4CAF50 !important;
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #1565c0 !important;
-  border-color: #1565c0 !important;
+  background: #45a049 !important;
 }
 
 /* Dialog Styles */
@@ -370,21 +378,22 @@ defineExpose({
 
 .dialog {
   background: #2a2a2a;
-  border-radius: 8px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 25px;
   max-width: 500px;
   width: 90%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .dialog h3 {
-  margin: 0 0 12px 0;
-  font-size: 1.3em;
+  margin: 0 0 20px 0;
+  font-size: 1.2em;
+  color: #e0e0e0;
 }
 
 .dialog p {
   margin: 0 0 20px 0;
-  color: #aaa;
+  color: #e0e0e0;
   font-size: 0.95em;
 }
 
@@ -394,9 +403,9 @@ defineExpose({
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  color: #ccc;
-  font-size: 0.95em;
+  margin-bottom: 5px;
+  color: #999;
+  font-size: 0.9em;
 }
 
 .form-group select,
@@ -405,15 +414,15 @@ defineExpose({
   padding: 10px;
   background: #1a1a1a;
   border: 1px solid #444;
-  border-radius: 4px;
-  color: white;
+  border-radius: 6px;
+  color: #e0e0e0;
   font-size: 1em;
 }
 
 .form-group select:focus,
 .form-group input:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: #4CAF50;
 }
 
 .dialog-actions {
@@ -424,11 +433,11 @@ defineExpose({
 
 .dialog-actions button {
   padding: 10px 20px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: none;
   cursor: pointer;
-  font-size: 1em;
-  transition: all 0.2s;
+  font-size: 0.9em;
+  transition: background 0.2s;
 }
 
 .cancel-btn {
@@ -441,12 +450,12 @@ defineExpose({
 }
 
 .save-confirm-btn {
-  background: #1976d2;
+  background: #4CAF50;
   color: white;
 }
 
 .save-confirm-btn:hover:not(:disabled) {
-  background: #1565c0;
+  background: #45a049;
 }
 
 .save-confirm-btn:disabled {

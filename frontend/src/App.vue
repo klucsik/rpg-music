@@ -241,36 +241,35 @@ body {
 
 .app-header {
   background: #2a2a2a;
-  padding: 12px 20px;
+  padding: 8px 15px;
   border-bottom: 2px solid #4CAF50;
   display: flex;
   justify-content: space-between;
   align-items: center;
-
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.6em;
+  font-size: 1.3em;
   color: #4CAF50;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
 }
 
 .stats {
   display: flex;
-  gap: 15px;
+  gap: 12px;
 }
 
 .stat {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: #1a1a1a;
-  border-radius: 6px;
-  font-size: 0.9em;
+  border-radius: 4px;
+  font-size: 0.85em;
   color: #999;
 }
 
@@ -281,8 +280,8 @@ body {
   max-width: 1920px;
   width: 100%;
   margin: 0 auto;
-  padding: 15px;
-  gap: 15px;
+  padding: 10px;
+  gap: 10px;
   overflow: hidden;
   min-height: 0;
 }
@@ -291,9 +290,9 @@ body {
 .top-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  flex-shrink: 0; /* Don't shrink the player */
-  max-height: 320px; /* Limit player height */
+  gap: 10px;
+  flex-shrink: 0;
+  max-height: 280px;
 }
 
 /* Main content area - scrollable lists */
@@ -301,8 +300,8 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 15px;
-  min-height: 400px;
+  gap: 10px;
+  min-height: 350px;
   overflow: hidden;
 }
 
@@ -409,21 +408,32 @@ body {
   margin: 0;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 10px;
+/* Scrollbar styling for all browsers */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4CAF50 #1a1a1a;
 }
 
-::-webkit-scrollbar-track {
+/* Webkit browsers (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
   background: #1a1a1a;
 }
 
-::-webkit-scrollbar-thumb {
+*::-webkit-scrollbar-thumb {
   background: #4CAF50;
   border-radius: 5px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+*::-webkit-scrollbar-thumb:hover {
   background: #45a049;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #1a1a1a;
 }
 </style>

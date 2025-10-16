@@ -13,18 +13,20 @@
     >
       <template #header>
         <div class="library-header">
-          <h3>Music Library</h3>
-          <div class="library-search">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search tracks..."
-              @input="handleSearch"
-            />
-          </div>
-          <div class="library-stats">
-            {{ trackCount }} tracks
-            <span v-if="loading">• Loading...</span>
+          <div class="header-row">
+            <h3>Music Library</h3>
+            <div class="library-search">
+              <input
+                v-model="searchQuery"
+                type="text"
+                placeholder="Search tracks..."
+                @input="handleSearch"
+              />
+            </div>
+            <div class="library-stats">
+              {{ trackCount }} tracks
+              <span v-if="loading">• Loading...</span>
+            </div>
           </div>
         </div>
       </template>
@@ -153,18 +155,25 @@ defineExpose({
 }
 
 .library-header {
-  padding: 15px;
+  padding: 12px;
   border-bottom: 1px solid #333;
   background: #222;
 }
 
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .library-header h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.1em;
+  margin: 0;
+  font-size: 1em;
+  white-space: nowrap;
 }
 
 .library-search {
-  margin-bottom: 8px;
+  flex: 1;
 }
 
 .library-search input {
@@ -185,6 +194,7 @@ defineExpose({
 .library-stats {
   font-size: 0.85em;
   color: #999;
+  white-space: nowrap;
 }
 
 .track-info {

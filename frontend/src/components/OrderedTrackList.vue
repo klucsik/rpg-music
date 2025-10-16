@@ -424,8 +424,8 @@ const handleContainerDrop = (event) => {
 .track-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 8px;
+  gap: 6px;
+  padding: 8px 6px;
   margin-bottom: 1px;
   background: transparent;
   border-bottom: 1px solid #333;

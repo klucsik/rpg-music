@@ -409,127 +409,60 @@ defineExpose({
 
 <style scoped>
 .folder-manager-panel {
-  height: 100%;
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  background: #1a1a1a;
-  border-radius: 8px;
+  height: 100%;
   overflow: hidden;
 }
 
 .folder-header {
-  padding: 15px;
-  border-bottom: 1px solid #333;
-  background: #222;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .folder-header h3 {
   margin: 0;
-  font-size: 1.1em;
+  font-size: 1em;
+  color: #e0e0e0;
 }
 
 .create-btn {
-  padding: 6px 12px;
-  background: #42b983;
+  padding: 5px 10px;
+  background: #4CAF50;
   border: none;
   border-radius: 4px;
   color: white;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.85em;
+  transition: background 0.2s;
 }
 
 .create-btn:hover {
-  background: #35a372;
+  background: #45a049;
 }
 
 .folder-tree {
-  flex: 0 0 auto;
-  max-height: 200px;
-  overflow-y: auto;
-  border-bottom: 1px solid #333;
-}
-
-.folder-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 15px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.folder-item:hover {
-  background: #2a2a2a;
-}
-
-.folder-item.active {
-  background: #1a5f7a;
-}
-
-.folder-icon {
-  font-size: 1.2em;
-}
-
-.folder-name {
   flex: 1;
-  font-size: 0.95em;
-}
-
-.folder-count {
-  font-size: 0.85em;
-  color: #999;
-}
-
-.delete-btn {
-  background: transparent;
-  border: none;
-  color: #999;
-  font-size: 1.5em;
-  line-height: 1;
-  padding: 0 8px;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.delete-btn:hover {
-  color: #ff6b6b;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .empty-folders {
   text-align: center;
   padding: 20px;
-  color: #666;
+  color: #999;
 }
 
 .empty-hint {
   font-size: 0.9em;
   margin-top: 8px;
-}
-
-.folder-tracks {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.folder-tracks-header {
-  padding: 12px 15px;
-  border-bottom: 1px solid #333;
-  background: #222;
-}
-
-.folder-tracks-header h4 {
-  margin: 0;
-  font-size: 1em;
-  font-weight: 500;
-}
-
-.empty-folder-tracks {
-  text-align: center;
+  color: #666;
 }
 
 /* Dialog styles */
@@ -548,20 +481,23 @@ defineExpose({
 
 .dialog {
   background: #2a2a2a;
-  border-radius: 8px;
-  padding: 24px;
-  min-width: 300px;
-  max-width: 500px;
+  border-radius: 12px;
+  padding: 25px;
+  min-width: 400px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .dialog h3 {
-  margin: 0 0 16px 0;
-  font-size: 1.1em;
+  margin: 0 0 20px 0;
+  font-size: 1.2em;
+  color: #e0e0e0;
 }
 
 .dialog p {
-  margin: 0 0 12px 0;
-  color: #aaa;
+  margin: 10px 0;
+  color: #e0e0e0;
 }
 
 .dialog .warning {
@@ -570,13 +506,13 @@ defineExpose({
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 15px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
-  color: #ccc;
+  margin-bottom: 5px;
+  color: #999;
   font-size: 0.9em;
 }
 
@@ -586,15 +522,15 @@ defineExpose({
   padding: 10px;
   background: #1a1a1a;
   border: 1px solid #444;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.95em;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 1em;
 }
 
 .form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #42b983;
+  border-color: #4CAF50;
 }
 
 .dialog input {
@@ -615,21 +551,24 @@ defineExpose({
 
 .dialog-actions {
   display: flex;
+  gap: 10px;
   justify-content: flex-end;
-  gap: 8px;
+  margin-top: 20px;
 }
 
 .dialog-actions button {
-  padding: 8px 16px;
+  padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 0.9em;
+  transition: background 0.2s;
 }
 
 .cancel-btn {
   background: #444;
   color: white;
+  transition: background 0.2s;
 }
 
 .cancel-btn:hover {
@@ -637,16 +576,27 @@ defineExpose({
 }
 
 .dialog-actions .create-btn {
-  background: #42b983;
+  background: #4CAF50;
   color: white;
+  transition: background 0.2s;
 }
 
 .dialog-actions .create-btn:hover:not(:disabled) {
-  background: #35a372;
+  background: #45a049;
 }
 
 .dialog-actions .create-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background: #d32f2f;
 }
 </style>

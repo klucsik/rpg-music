@@ -563,22 +563,21 @@ export default {
 <style scoped>
 .audio-player {
   background: #2a2a2a;
-  border-radius: 12px;
-  padding: 15px;
+  border-radius: 8px;
+  padding: 12px;
   position: relative;
   display: flex;
   flex-direction: column;
-
-  min-height: 280px;
+  min-height: 240px;
 }
 
 .now-playing {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 10px;
-  min-height: 60px;
+  margin-bottom: 10px;
+  gap: 8px;
+  min-height: 50px;
 }
 
 .track-info {
@@ -587,8 +586,8 @@ export default {
 }
 
 .track-info h2 {
-  margin: 0 0 4px 0;
-  font-size: 1.3em;
+  margin: 0 0 3px 0;
+  font-size: 1.1em;
   color: #e0e0e0;
   white-space: nowrap;
   overflow: hidden;

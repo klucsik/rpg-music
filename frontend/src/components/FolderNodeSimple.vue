@@ -228,11 +228,12 @@ const handleHeaderDrop = (event) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: #2a2a2a;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  margin-bottom: 4px;
 }
 
 .folder-header:hover {
@@ -244,8 +245,9 @@ const handleHeaderDrop = (event) => {
 }
 
 .folder-header.drag-over {
-  background: rgba(76, 175, 80, 0.3);
+  background: rgba(76, 175, 80, 0.2);
   border: 2px dashed #4CAF50;
+  padding: 6px 10px;
 }
 
 .expand-icon {
@@ -276,23 +278,26 @@ const handleHeaderDrop = (event) => {
 
 .action-btn {
   padding: 4px 8px;
-  background: transparent;
-  border: 1px solid #444;
-  border-radius: 3px;
+  background: #444;
+  border: none;
+  border-radius: 4px;
   color: white;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: 0.85em;
   transition: all 0.2s;
+  opacity: 0;
+}
+
+.folder-header:hover .action-btn {
+  opacity: 1;
 }
 
 .action-btn:hover {
-  background: #444;
-  border-color: #555;
+  background: #4CAF50;
 }
 
 .action-btn.delete:hover {
-  background: #d32f2f;
-  border-color: #d32f2f;
+  background: #f44336;
 }
 
 .folder-tracks,
