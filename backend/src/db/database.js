@@ -5,6 +5,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import config from '../config/config.js';
 import logger from '../utils/logger.js';
+import * as collectionQueriesModule from './collectionQueries.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,11 +32,21 @@ export async function initDatabase() {
     
     logger.info({ path: config.databasePath }, 'Database connection established');
     
-    // Run schema
+    // Run main schema
     const schema = readFileSync(`${__dirname}/schema.sql`, 'utf-8');
     db.exec(schema);
     
     logger.info('Database schema initialized');
+    
+    // Run collections schema (new unified system)
+    try {
+      const collectionsSchema = readFileSync(`${__dirname}/schema-collections.sql`, 'utf-8');
+      db.exec(collectionsSchema);
+      logger.info('Collections schema initialized');
+    } catch (error) {
+      // Collections schema is optional for now during transition
+      logger.warn({ error }, 'Collections schema not found or failed to initialize');
+    }
     
     return db;
   } catch (error) {
@@ -442,6 +453,39 @@ export const playlistQueries = {
   },
 };
 
+// Collection operations (new unified system)
+export const collectionQueries = {
+  getCollection: (collectionId) => 
+    collectionQueriesModule.getCollection(getDb(), collectionId),
+  
+  getCollections: (type = null, parentId = null) => 
+    collectionQueriesModule.getCollections(getDb(), type, parentId),
+  
+  createCollection: (data) => 
+    collectionQueriesModule.createCollection(getDb(), data),
+  
+  updateCollection: (collectionId, updates) => 
+    collectionQueriesModule.updateCollection(getDb(), collectionId, updates),
+  
+  deleteCollection: (collectionId) => 
+    collectionQueriesModule.deleteCollection(getDb(), collectionId),
+  
+  addTrack: (collectionId, trackId, position = null) => 
+    collectionQueriesModule.addTrack(getDb(), collectionId, trackId, position),
+  
+  removeTrack: (collectionId, trackId) => 
+    collectionQueriesModule.removeTrack(getDb(), collectionId, trackId),
+  
+  reorderTrack: (collectionId, trackId, newPosition) => 
+    collectionQueriesModule.reorderTrack(getDb(), collectionId, trackId, newPosition),
+  
+  clearTracks: (collectionId) => 
+    collectionQueriesModule.clearTracks(getDb(), collectionId),
+  
+  getCollectionTracks: (collectionId, limit = 50, offset = 0) => 
+    collectionQueriesModule.getCollectionTracks(getDb(), collectionId, limit, offset)
+};
+
 export default {
   initDatabase,
   getDb,
@@ -450,4 +494,5 @@ export default {
   folderQueries,
   trackFolderQueries,
   playlistQueries,
+  collectionQueries,
 };
