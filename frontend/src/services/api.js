@@ -47,56 +47,7 @@ class ApiClient {
     return this.getTracks({ search: query });
   }
 
-  // Folders
-  async getFolders() {
-    return this.request('/api/folders');
-  }
-
-  async getFoldersFlat() {
-    return this.request('/api/folders/flat');
-  }
-
-  async getFolder(id) {
-    return this.request(`/api/folders/${id}`);
-  }
-
-  async createFolder(name, parentId = null, sortOrder = 0) {
-    return this.request('/api/folders', {
-      method: 'POST',
-      body: JSON.stringify({ name, parent_id: parentId, sort_order: sortOrder }),
-    });
-  }
-
-  async updateFolder(id, updates) {
-    return this.request(`/api/folders/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(updates),
-    });
-  }
-
-  async deleteFolder(id) {
-    return this.request(`/api/folders/${id}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async addTrackToFolder(folderId, trackId) {
-    return this.request(`/api/folders/${folderId}/tracks/${trackId}`, {
-      method: 'POST',
-    });
-  }
-
-  async removeTrackFromFolder(folderId, trackId) {
-    return this.request(`/api/folders/${folderId}/tracks/${trackId}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async getFolderTracks(folderId) {
-    return this.request(`/api/folders/${folderId}/tracks`);
-  }
-
-  // Collections (New Unified API)
+  // Collections (Unified API)
   async getCollections(type = null, parentId = null) {
     const params = {};
     if (type) params.type = type;
@@ -166,38 +117,6 @@ class ApiClient {
   async clearCollectionTracks(collectionId) {
     return this.request(`/api/collections/${collectionId}/tracks`, {
       method: 'DELETE',
-    });
-  }
-
-  // Playlist
-  async getPlaylist() {
-    return this.request('/api/playlist');
-  }
-
-  async updatePlaylist(trackIds) {
-    return this.request('/api/playlist', {
-      method: 'PUT',
-      body: JSON.stringify({ trackIds }),
-    });
-  }
-
-  async reorderPlaylist(trackIds) {
-    return this.request('/api/playlist/reorder', {
-      method: 'POST',
-      body: JSON.stringify({ trackIds }),
-    });
-  }
-
-  async clearPlaylist() {
-    return this.request('/api/playlist', {
-      method: 'DELETE',
-    });
-  }
-
-  async setPlaylistLoop(enabled) {
-    return this.request('/api/playlist/loop', {
-      method: 'POST',
-      body: JSON.stringify({ enabled }),
     });
   }
 
