@@ -36,6 +36,7 @@ const config = {
   
   // External Links
   addMusicUrl: process.env.ADD_MUSIC_URL || '',
+  addMusicText: process.env.ADD_MUSIC_TEXT || 'Click "Continue" to open the music source in a new tab.',
   
   // Computed
   isDevelopment: process.env.NODE_ENV === 'development',

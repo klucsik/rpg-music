@@ -43,6 +43,7 @@ router.get('/config', (req, res) => {
     positionCheckInterval: config.positionCheckInterval,
     defaultBitrate: config.defaultBitrate,
     addMusicUrl: config.addMusicUrl,
+    addMusicText: config.addMusicText,
   });
 });
 

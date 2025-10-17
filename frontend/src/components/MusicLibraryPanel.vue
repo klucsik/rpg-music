@@ -15,16 +15,14 @@
         <div class="library-header">
           <div class="header-row">
             <h3>Music Library</h3>
-            <a 
-              v-if="addMusicUrl" 
-              :href="addMusicUrl" 
-              target="_blank" 
-              rel="noopener noreferrer"
+            <button
+              v-if="addMusicUrl"
+              @click="handleAddMusicClick"
               class="add-music-btn"
               title="Add new music"
             >
               ➕ Add
-            </a>
+            </button>
             <div class="order-controls">
               <select v-model="orderBy" class="order-select" title="Sort by">
                 <option value="title">Name</option>
@@ -87,12 +85,23 @@
         </div>
       </template>
     </OrderedTrackList>
+
+    <!-- Add Music Dialog -->
+    <SimpleDialog
+      :show="showAddMusicDialog"
+      title="Add Music"
+      :message="addMusicText"
+      :continue-url="addMusicUrl"
+      @close="handleDialogClose"
+      @continue="handleDialogClose"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
+import SimpleDialog from './SimpleDialog.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
 
@@ -136,18 +145,31 @@ watch([orderBy, orderDir], () => {
   loadCollection();
 });
 
-// Add Music URL
+// Add Music Dialog
+const showAddMusicDialog = ref(false);
 const addMusicUrl = ref('');
+const addMusicText = ref('');
 
-// Load system config to get add music URL
+// Load system config to get add music URL and text
 const loadSystemInfo = async () => {
   try {
     const response = await api.getConfig();
     addMusicUrl.value = response.addMusicUrl || '';
-    console.log('Add Music URL loaded:', addMusicUrl.value);
+    addMusicText.value = response.addMusicText || 'Click "Continue" to open the music source in a new tab.';
+    console.log('Add Music config loaded:', { url: addMusicUrl.value, text: addMusicText.value });
   } catch (err) {
     console.error('Failed to load system config:', err);
   }
+};
+
+const handleAddMusicClick = () => {
+  if (addMusicUrl.value) {
+    showAddMusicDialog.value = true;
+  }
+};
+
+const handleDialogClose = () => {
+  showAddMusicDialog.value = false;
 };
 
 const handleSearch = () => {
@@ -262,11 +284,17 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
 }
 
 .add-music-btn:hover {
   background: #45a049;
   border-color: #45a049;
+}
+
+.add-music-btn:active {
+  transform: scale(0.98);
 }
 
 .order-controls {
