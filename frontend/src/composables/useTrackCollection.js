@@ -13,7 +13,8 @@ export function useTrackCollection(collectionId, options = {}) {
     enableWebSocket = false,
     webSocketEvents = [],
     orderBy = ref('title'),
-    orderDir = ref('asc')
+    orderDir = ref('asc'),
+    searchQuery = ref('')
   } = options;
 
   // State
@@ -48,10 +49,11 @@ export function useTrackCollection(collectionId, options = {}) {
     error.value = null;
 
     try {
-      // Build query params for ordering (library only)
+      // Build query params for ordering (library only) and search
       const params = new URLSearchParams();
       if (orderBy.value) params.append('order_by', orderBy.value);
       if (orderDir.value) params.append('order_dir', orderDir.value);
+      if (searchQuery.value) params.append('search', searchQuery.value);
       
       const queryString = params.toString();
       const url = `/api/collections/${actualId}${queryString ? `?${queryString}` : ''}`;

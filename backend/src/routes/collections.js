@@ -54,15 +54,16 @@ export default () => {
   /**
    * GET /api/collections/:id
    * Get a specific collection with all its tracks
-   * Query params: order_by, order_dir for library ordering
+   * Query params: order_by, order_dir for library ordering, search for filtering
    */
   router.get('/:id', (req, res) => {
     try {
       const db = getDb();
       const orderBy = req.query.order_by || 'title';
       const orderDir = req.query.order_dir || 'asc';
+      const searchQuery = req.query.search || '';
       
-      const collection = collectionQueries.getCollection(db, req.params.id, orderBy, orderDir);
+      const collection = collectionQueries.getCollection(db, req.params.id, orderBy, orderDir, searchQuery);
       if (!collection) {
         return res.status(404).json({ error: 'Collection not found' });
       }

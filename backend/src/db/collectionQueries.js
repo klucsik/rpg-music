@@ -11,9 +11,10 @@ import logger from '../utils/logger.js';
  * @param {string} collectionId - Collection ID
  * @param {string} orderBy - Order field for library: 'title', 'artist', 'album', 'created_at'
  * @param {string} orderDir - Order direction: 'asc', 'desc'
+ * @param {string} searchQuery - Optional search query to filter tracks
  * @returns {Object|null} Collection with tracks array
  */
-function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc') {
+function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc', searchQuery = '') {
   try {
     // Get collection metadata
     const collection = db.prepare(`
@@ -37,6 +38,20 @@ function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc') {
       // Use COLLATE NOCASE for text fields
       const collate = ['title', 'artist', 'album'].includes(safeOrderBy) ? ' COLLATE NOCASE' : '';
       
+      // Build search condition
+      let whereClause = '';
+      const params = [collectionId];
+      
+      if (searchQuery && searchQuery.trim()) {
+        whereClause = `WHERE (
+          t.title LIKE ? COLLATE NOCASE OR 
+          t.artist LIKE ? COLLATE NOCASE OR 
+          t.album LIKE ? COLLATE NOCASE
+        )`;
+        const searchPattern = `%${searchQuery.trim()}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+      }
+      
       // Library shows all tracks with custom ordering
       tracks = db.prepare(`
         SELECT 
@@ -45,10 +60,24 @@ function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc') {
           ct.added_at
         FROM tracks t
         LEFT JOIN collection_tracks ct ON t.id = ct.track_id AND ct.collection_id = ?
+        ${whereClause}
         ORDER BY t.${safeOrderBy}${collate} ${safeOrderDir.toUpperCase()}
-      `).all(collectionId);
+      `).all(...params);
     } else {
       // Other collections show only their tracks, ordered by position
+      const params = [collectionId];
+      let whereClause = 'WHERE ct.collection_id = ?';
+      
+      if (searchQuery && searchQuery.trim()) {
+        whereClause += ` AND (
+          t.title LIKE ? COLLATE NOCASE OR 
+          t.artist LIKE ? COLLATE NOCASE OR 
+          t.album LIKE ? COLLATE NOCASE
+        )`;
+        const searchPattern = `%${searchQuery.trim()}%`;
+        params.push(searchPattern, searchPattern, searchPattern);
+      }
+      
       tracks = db.prepare(`
         SELECT 
           t.*,
@@ -56,9 +85,9 @@ function getCollection(db, collectionId, orderBy = 'title', orderDir = 'asc') {
           ct.added_at
         FROM collection_tracks ct
         JOIN tracks t ON ct.track_id = t.id
-        WHERE ct.collection_id = ?
+        ${whereClause}
         ORDER BY ct.position ASC
-      `).all(collectionId);
+      `).all(...params);
     }
 
     return {

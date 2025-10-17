@@ -109,6 +109,10 @@ const emit = defineEmits(['track-play']);
 const orderBy = ref(localStorage.getItem('library-order-by') || 'title');
 const orderDir = ref(localStorage.getItem('library-order-dir') || 'asc');
 
+// Search functionality
+const searchQuery = ref('');
+const searchTimeout = ref(null);
+
 // Use the collection composable for the library
 const {
   tracks,
@@ -121,7 +125,8 @@ const {
   autoLoad: true,
   enableWebSocket: false,
   orderBy,
-  orderDir
+  orderDir,
+  searchQuery
 });
 
 // Watch for order changes and reload
@@ -145,15 +150,10 @@ const loadSystemInfo = async () => {
   }
 };
 
-// Search functionality
-const searchQuery = ref('');
-const searchTimeout = ref(null);
-
 const handleSearch = () => {
   clearTimeout(searchTimeout.value);
   searchTimeout.value = setTimeout(() => {
-    // TODO: Implement search API call
-    console.log('Search:', searchQuery.value);
+    loadCollection();
   }, 300);
 };
 
