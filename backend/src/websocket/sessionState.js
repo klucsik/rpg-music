@@ -1,6 +1,7 @@
 /**
  * Session state management
  * Tracks the current playback state across all clients
+ * Simplified: Server only tracks state, clients handle timing and report when tracks end
  */
 
 class SessionState {
@@ -29,20 +30,20 @@ class SessionState {
    * Pause playback
    */
   pause() {
-    if (this.playbackState === 'playing' || this.playbackState === 'stopped') {
-      // Update position to current time (but don't let it auto-stop)
+    if (this.playbackState === 'playing') {
+      // Update position to current time
       if (this.lastUpdateTime) {
         const elapsed = (Date.now() - this.lastUpdateTime) / 1000;
         this.position += elapsed;
-        this.lastUpdateTime = Date.now();
       }
       // Cap position at duration if exceeded
       if (this.currentTrack && this.position > this.currentTrack.duration) {
         this.position = this.currentTrack.duration;
       }
-      // Force paused state (even if it was 'stopped')
-      this.playbackState = 'paused';
     }
+    
+    this.playbackState = 'paused';
+    this.lastUpdateTime = Date.now();
     
     return this.getState();
   }
@@ -66,7 +67,7 @@ class SessionState {
     this.playbackState = 'stopped';
     this.position = 0;
     this.lastUpdateTime = Date.now();
-    // Keep currentTrack for reference
+    this.currentTrack = null; // Clear track to prevent auto-restart
     
     return this.getState();
   }
@@ -103,24 +104,6 @@ class SessionState {
   setRepeat(enabled) {
     this.repeatMode = !!enabled;
     return this.getState();
-  }
-
-  /**
-   * Update current position based on elapsed time
-   */
-  updatePosition() {
-    if (this.playbackState === 'playing' && this.lastUpdateTime) {
-      const elapsed = (Date.now() - this.lastUpdateTime) / 1000;
-      this.position += elapsed;
-      
-      // Check if track finished
-      if (this.currentTrack && this.position >= this.currentTrack.duration) {
-        this.position = this.currentTrack.duration;
-        this.playbackState = 'stopped';
-      }
-      
-      this.lastUpdateTime = Date.now();
-    }
   }
 
   /**

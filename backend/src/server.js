@@ -12,7 +12,6 @@ import audioRoutes from './routes/audio.js';
 import scannerRoutes from './routes/scanner.js';
 import playbackRoutes from './routes/playback.js';
 import folderRoutes from './routes/folders.js';
-import playlistRoutes from './routes/playlist.js';
 import collectionsRoutes from './routes/collections.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
@@ -58,11 +57,10 @@ app.use((req, res, next) => {
 app.use('/api', systemRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/folders', folderRoutes);
-app.use('/api/playlist', playlistRoutes);
 app.use('/audio', audioRoutes);
 app.use('/api/scan', scannerRoutes);
 app.use('/api/playback', playbackRoutes);
-// New unified collections API (for gradual migration)
+// Unified collections API (replaces old playlist and folders routes)
 app.use('/api/collections', collectionsRoutes());
 
 // Serve static files from frontend build

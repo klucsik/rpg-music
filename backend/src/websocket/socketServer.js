@@ -2,7 +2,7 @@ import { Server } from 'socket.io';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import SyncController from './syncController.js';
-import { playlistQueries } from '../db/database.js';
+import { collectionQueries } from '../db/database.js';
 
 let io = null;
 let syncController = null;
@@ -42,11 +42,10 @@ export function initWebSocket(httpServer) {
     // Send current state to new client
     socket.emit('state_sync', syncController.getState());
     
-    // Send current playlist and settings to new client
-    const playlist = playlistQueries.getAll();
-    const loopAll = playlistQueries.getLoopAll();
+    // Send current playlist to new client (using collection system)
+    const playlistResult = collectionQueries.getCollectionTracks('current-playlist', 1000, 0);
+    const playlist = playlistResult.tracks || [];
     socket.emit('playlist_update', playlist);
-    socket.emit('playlist_settings_update', { loopAll });
     logger.debug({ clientId, playlistLength: playlist.length }, 'Sent initial playlist to new client');
 
     // Handle client requests for current state
@@ -55,10 +54,9 @@ export function initWebSocket(httpServer) {
       socket.emit('state_sync', syncController.getState());
       
       // Also send playlist state
-      const playlist = playlistQueries.getAll();
-      const loopAll = playlistQueries.getLoopAll();
+      const playlistResult = collectionQueries.getCollectionTracks('current-playlist', 1000, 0);
+      const playlist = playlistResult.tracks || [];
       socket.emit('playlist_update', playlist);
-      socket.emit('playlist_settings_update', { loopAll });
     });
 
     // Handle position reports from clients

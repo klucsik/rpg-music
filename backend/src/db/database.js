@@ -357,117 +357,7 @@ export const trackFolderQueries = {
   },
 };
 
-// Playlist operations
-export const playlistQueries = {
-  /**
-   * Get entire playlist
-   */
-  getAll: () => {
-    const stmt = getDb().prepare(`
-      SELECT p.position, t.* 
-      FROM playlist p
-      INNER JOIN tracks t ON p.track_id = t.id
-      ORDER BY p.position
-    `);
-    return stmt.all();
-  },
-
-  /**
-   * Add track to playlist
-   */
-  add: (trackId, position) => {
-    const stmt = getDb().prepare(`
-      INSERT INTO playlist (position, track_id, added_at)
-      VALUES (?, ?, ?)
-    `);
-    return stmt.run(position, trackId, Date.now());
-  },
-
-  /**
-   * Remove track from playlist by position
-   */
-  removeByPosition: (position) => {
-    const stmt = getDb().prepare('DELETE FROM playlist WHERE position = ?');
-    return stmt.run(position);
-  },
-
-  /**
-   * Clear entire playlist
-   */
-  clear: () => {
-    const stmt = getDb().prepare('DELETE FROM playlist');
-    return stmt.run();
-  },
-
-  /**
-   * Replace entire playlist
-   */
-  replace: (trackIds) => {
-    const db = getDb();
-    const transaction = db.transaction(() => {
-      // Clear existing playlist
-      db.prepare('DELETE FROM playlist').run();
-      
-      // Add new tracks
-      const insertStmt = db.prepare(`
-        INSERT INTO playlist (position, track_id, added_at)
-        VALUES (?, ?, ?)
-      `);
-      
-      trackIds.forEach((trackId, index) => {
-        insertStmt.run(index, trackId, Date.now());
-      });
-    });
-    
-    transaction();
-  },
-
-  /**
-   * Reorder playlist (update all positions)
-   */
-  reorder: (trackIds) => {
-    const db = getDb();
-    const transaction = db.transaction(() => {
-      // Clear and rebuild with new order
-      db.prepare('DELETE FROM playlist').run();
-      
-      const insertStmt = db.prepare(`
-        INSERT INTO playlist (position, track_id, added_at)
-        VALUES (?, ?, ?)
-      `);
-      
-      trackIds.forEach((trackId, index) => {
-        insertStmt.run(index, trackId, Date.now());
-      });
-    });
-    
-    transaction();
-  },
-
-  /**
-   * Get loop_all setting
-   */
-  getLoopAll: () => {
-    const stmt = getDb().prepare(`
-      SELECT value FROM playlist_settings WHERE key = 'loop_all'
-    `);
-    const result = stmt.get();
-    return result ? result.value === 'true' : false;
-  },
-
-  /**
-   * Set loop_all setting
-   */
-  setLoopAll: (enabled) => {
-    const stmt = getDb().prepare(`
-      INSERT OR REPLACE INTO playlist_settings (key, value)
-      VALUES ('loop_all', ?)
-    `);
-    return stmt.run(enabled ? 'true' : 'false');
-  },
-};
-
-// Collection operations (new unified system)
+// Collection operations (unified system replacing old playlist/folder systems)
 export const collectionQueries = {
   getCollection: (collectionId) => 
     collectionQueriesModule.getCollection(getDb(), collectionId),
@@ -507,6 +397,5 @@ export default {
   trackQueries,
   folderQueries,
   trackFolderQueries,
-  playlistQueries,
   collectionQueries,
 };
