@@ -4,7 +4,7 @@ import { parseFile } from 'music-metadata';
 import { stat } from 'fs/promises';
 import config from '../config/config.js';
 import logger from '../utils/logger.js';
-import { downloadJobQueries, trackQueries } from '../db/database.js';
+import { downloadJobQueries, trackQueries, collectionQueries } from '../db/database.js';
 import { downloadAudio, fetchVideoMetadata, extractVideoId } from './ytdlpDownloader.js';
 
 /**
@@ -39,7 +39,7 @@ class DownloadQueue {
   /**
    * Add a new download job to the queue
    */
-  async addJob(youtubeUrl, metadata = null) {
+  async addJob(youtubeUrl, metadata = null, folderIds = null) {
     try {
       const videoId = extractVideoId(youtubeUrl);
       
@@ -85,6 +85,7 @@ class DownloadQueue {
         youtube_duration: jobMetadata.duration,
         status: 'pending',
         track_id: null,
+        folder_id: folderIds && folderIds.length > 0 ? JSON.stringify(folderIds) : null,
         error_message: null,
         progress_percent: 0,
         created_at: Date.now(),
@@ -93,7 +94,7 @@ class DownloadQueue {
       };
       
       downloadJobQueries.insert(job);
-      logger.info({ jobId, videoId, title: jobMetadata.title }, 'Download job added to queue');
+      logger.info({ jobId, videoId, title: jobMetadata.title, folderIds }, 'Download job added to queue');
       
       // Broadcast event
       this.broadcast('download_job_added', job);
@@ -194,6 +195,27 @@ class DownloadQueue {
           
           trackQueries.insert(track);
           logger.info({ trackId, title: track.title }, 'Track added to library');
+          
+          // Add track to folders if specified
+          if (job.folder_id) {
+            try {
+              const folderIds = JSON.parse(job.folder_id);
+              if (Array.isArray(folderIds) && folderIds.length > 0) {
+                for (const folderId of folderIds) {
+                  try {
+                    // Add track to folder (position will be automatically set to end)
+                    collectionQueries.addTrack(folderId, trackId);
+                    logger.info({ trackId, folderId }, 'Track added to folder');
+                  } catch (folderError) {
+                    logger.error({ error: folderError, trackId, folderId }, 'Failed to add track to folder');
+                    // Continue with other folders even if one fails
+                  }
+                }
+              }
+            } catch (parseError) {
+              logger.error({ error: parseError, trackId, folder_id: job.folder_id }, 'Failed to parse folder_id JSON');
+            }
+          }
           
           // Update job status
           downloadJobQueries.updateStatus(job.id, 'completed', 100);

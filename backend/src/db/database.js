@@ -55,6 +55,7 @@ async function runMigrations() {
         youtube_duration INTEGER,
         status TEXT NOT NULL DEFAULT 'pending',
         track_id TEXT,
+        folder_id TEXT,
         error_message TEXT,
         progress_percent INTEGER DEFAULT 0,
         created_at INTEGER NOT NULL,
@@ -67,8 +68,19 @@ async function runMigrations() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_status ON download_jobs(status)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_video_id ON download_jobs(youtube_video_id)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_created_at ON download_jobs(created_at)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_folder_id ON download_jobs(folder_id)');
     
     logger.info('Download jobs table created');
+  } else {
+    // Check if folder_id column exists in download_jobs
+    const downloadJobsInfo = db.prepare("PRAGMA table_info(download_jobs)").all();
+    const hasFolderId = downloadJobsInfo.some(col => col.name === 'folder_id');
+    
+    if (!hasFolderId) {
+      logger.info('Adding folder_id column to download_jobs table');
+      db.exec('ALTER TABLE download_jobs ADD COLUMN folder_id TEXT');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_folder_id ON download_jobs(folder_id)');
+    }
   }
   
   logger.info('Database migrations completed');
@@ -491,11 +503,11 @@ export const downloadJobQueries = {
     const stmt = getDb().prepare(`
       INSERT INTO download_jobs (
         id, youtube_url, youtube_video_id, youtube_title, youtube_channel,
-        youtube_thumbnail, youtube_duration, status, track_id, error_message,
+        youtube_thumbnail, youtube_duration, status, track_id, folder_id, error_message,
         progress_percent, created_at, started_at, completed_at
       ) VALUES (
         @id, @youtube_url, @youtube_video_id, @youtube_title, @youtube_channel,
-        @youtube_thumbnail, @youtube_duration, @status, @track_id, @error_message,
+        @youtube_thumbnail, @youtube_duration, @status, @track_id, @folder_id, @error_message,
         @progress_percent, @created_at, @started_at, @completed_at
       )
     `);

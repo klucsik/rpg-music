@@ -119,6 +119,7 @@
     <YouTubeSearchDialog
       :show="showYouTubeSearchDialog"
       :downloaded-video-ids="downloadedVideoIds"
+      :folders="folders"
       @close="handleYouTubeSearchClose"
       @download-started="handleDownloadStarted"
     />
@@ -251,6 +252,17 @@ const searchTimeout = ref(null);
 // YouTube Search Dialog
 const showYouTubeSearchDialog = ref(false);
 const downloadedVideoIds = ref(new Set());
+const folders = ref([]);
+
+// Load folders for YouTube dialog
+const loadFolders = async () => {
+  try {
+    const result = await api.getCollections('folder');
+    folders.value = result;
+  } catch (err) {
+    console.error('Failed to load folders:', err);
+  }
+};
 
 // Use the collection composable for the library
 const {
@@ -545,6 +557,7 @@ const handleTrackDeleted = (data) => {
 // Load system info on mount
 onMounted(() => {
   loadDownloadedVideoIds();
+  loadFolders();
   websocket.on('download_completed', handleDownloadCompleted);
   websocket.on('track_added', handleTrackAdded);
   websocket.on('track_updated', handleTrackUpdated);

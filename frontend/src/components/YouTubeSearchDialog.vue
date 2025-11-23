@@ -7,6 +7,17 @@
       </div>
       
       <div class="dialog-body">
+        <!-- Folder Selection -->
+        <div class="folder-selection">
+          <FolderSelector
+            v-model="selectedFolderIds"
+            :folders="folders"
+            label="Add downloads to folders (optional, hold Ctrl/Cmd to select multiple)"
+            :show-track-counts="false"
+            :multiple="true"
+          />
+        </div>
+
         <!-- Search Input -->
         <div class="search-section">
           <input
@@ -134,6 +145,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import api from '../services/api';
 import websocket from '../services/websocket';
+import FolderSelector from './FolderSelector.vue';
 
 const props = defineProps({
   show: {
@@ -147,6 +159,10 @@ const props = defineProps({
   downloadedVideoIds: {
     type: Set,
     default: () => new Set()
+  },
+  folders: {
+    type: Array,
+    default: () => []
   }
 });
 
@@ -162,6 +178,7 @@ const successMessage = ref(null);
 const hasSearched = ref(false);
 const searchInput = ref(null);
 const downloadingIds = ref(new Set());
+const selectedFolderIds = ref([]);
 
 /**
  * Handle search
@@ -199,14 +216,21 @@ const handleDownload = async (result) => {
   try {
     downloadingIds.value.add(result.video_id);
     
-    const response = await api.addDownloadFromSearch({
+    const downloadData = {
       video_id: result.video_id,
       title: result.title,
       channel: result.channel,
       duration: result.duration,
       thumbnail: result.thumbnail,
       url: result.url,
-    });
+    };
+    
+    // Add folder_ids if selected
+    if (selectedFolderIds.value && selectedFolderIds.value.length > 0) {
+      downloadData.folder_ids = selectedFolderIds.value;
+    }
+    
+    const response = await api.addDownloadFromSearch(downloadData);
 
     successMessage.value = `"${result.title}" added to download queue`;
     emit('download-started', response.job);
@@ -281,6 +305,7 @@ watch(() => props.show, async (newVal) => {
     successMessage.value = null;
     hasSearched.value = false;
     downloadingIds.value.clear();
+    selectedFolderIds.value = [];
   }
 });
 
@@ -379,6 +404,12 @@ onUnmounted(() => {
   padding: 20px;
   overflow-y: auto;
   flex: 1;
+}
+
+.folder-selection {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #333;
 }
 
 .search-section {

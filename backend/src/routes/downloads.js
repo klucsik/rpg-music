@@ -94,11 +94,11 @@ router.post('/', async (req, res) => {
 /**
  * Add a new download job from search result
  * POST /api/downloads/from-search
- * Body: { video_id, title, channel, duration, thumbnail, url }
+ * Body: { video_id, title, channel, duration, thumbnail, url, folder_ids }
  */
 router.post('/from-search', async (req, res) => {
   try {
-    const { video_id, title, channel, duration, thumbnail, url } = req.body;
+    const { video_id, title, channel, duration, thumbnail, url, folder_ids } = req.body;
     
     if (!video_id || !url) {
       return res.status(400).json({
@@ -106,7 +106,7 @@ router.post('/from-search', async (req, res) => {
       });
     }
     
-    logger.info({ video_id, title }, 'Download job requested from search result');
+    logger.info({ video_id, title, folder_ids }, 'Download job requested from search result');
     
     // Prepare metadata from search result
     const metadata = {
@@ -118,7 +118,7 @@ router.post('/from-search', async (req, res) => {
       url,
     };
     
-    const job = await downloadQueue.addJob(url, metadata);
+    const job = await downloadQueue.addJob(url, metadata, folder_ids);
     
     res.status(201).json({
       message: 'Download job added to queue',

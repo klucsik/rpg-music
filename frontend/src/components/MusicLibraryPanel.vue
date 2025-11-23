@@ -102,6 +102,7 @@
     <YouTubeSearchDialog
       :show="showYouTubeSearchDialog"
       :downloaded-video-ids="downloadedVideoIds"
+      :folders="folders"
       @close="handleYouTubeSearchClose"
       @download-started="handleDownloadStarted"
     />
@@ -163,6 +164,17 @@ const showYouTubeSearchDialog = ref(false);
 const addMusicUrl = ref('');
 const addMusicText = ref('');
 const downloadedVideoIds = ref(new Set());
+const folders = ref([]);
+
+// Load folders for YouTube dialog
+const loadFolders = async () => {
+  try {
+    const result = await api.getCollections('folder');
+    folders.value = result;
+  } catch (err) {
+    console.error('Failed to load folders:', err);
+  }
+};
 
 // Load system config to get add music URL and text
 const loadSystemInfo = async () => {
