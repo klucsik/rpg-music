@@ -36,8 +36,8 @@
     </div>
 
     <!-- Create/Edit Folder Dialog -->
-    <div v-if="showCreateDialog || showEditDialog" class="dialog-overlay" @click="showCreateDialog = false; showEditDialog = false">
-      <div class="dialog" @click.stop>
+    <div v-if="showCreateDialog || showEditDialog" class="dialog-overlay" @click.self="closeDialogs">
+      <div class="dialog">
         <h3>{{ showEditDialog ? 'Edit Folder' : 'Create New Folder' }}</h3>
         
         <div class="form-group">
@@ -67,7 +67,7 @@
         </div>
         
         <div class="dialog-actions">
-          <button @click="showCreateDialog = false; showEditDialog = false" class="cancel-btn">Cancel</button>
+          <button @click="closeDialogs" class="cancel-btn">Cancel</button>
           <button 
             @click="showEditDialog ? saveEditFolder() : createFolder()" 
             :disabled="!newFolderName.trim()" 
@@ -80,8 +80,8 @@
     </div>
 
     <!-- Delete Confirmation Dialog -->
-    <div v-if="showDeleteDialog" class="dialog-overlay" @click="showDeleteDialog = false">
-      <div class="dialog" @click.stop>
+    <div v-if="showDeleteDialog" class="dialog-overlay" @click.self="showDeleteDialog = false">
+      <div class="dialog">
         <h3>Delete Folder?</h3>
         <p>Are you sure you want to delete "{{ folderToDelete?.name }}"?</p>
         <p class="warning">This will not delete the tracks, only the folder organization.</p>
@@ -96,10 +96,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import FolderNodeSimple from './FolderNodeSimple.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
+import websocket from '../services/websocket';
 
 const props = defineProps({
   currentTrack: {
@@ -245,6 +246,17 @@ const createFolder = async () => {
     console.error('Failed to create folder:', err);
     alert('Failed to create folder');
   }
+};
+
+/**
+ * Close all dialogs
+ */
+const closeDialogs = () => {
+  showCreateDialog.value = false;
+  showEditDialog.value = false;
+  newFolderName.value = '';
+  editingFolder.value = null;
+  parentFolderId.value = null;
 };
 
 /**
@@ -398,8 +410,45 @@ watch(showCreateDialog, (isOpen) => {
   }
 });
 
+/**
+ * Handle track updated from WebSocket
+ */
+const handleTrackUpdated = (data) => {
+  console.log('Track updated, refreshing folders:', data);
+  // Refresh expanded folder tracks if any
+  if (expandedFolderId.value) {
+    refreshFolderTracks();
+  }
+  // Reload folder list to update track counts
+  loadFolders();
+};
+
+/**
+ * Handle track deleted from WebSocket
+ */
+const handleTrackDeleted = (data) => {
+  console.log('Track deleted, refreshing folders:', data);
+  // Refresh expanded folder tracks if any
+  if (expandedFolderId.value) {
+    refreshFolderTracks();
+  }
+  // Reload folder list to update track counts
+  loadFolders();
+};
+
 // Load folders on mount
 loadFolders();
+
+// Set up WebSocket listeners
+onMounted(() => {
+  websocket.on('track_updated', handleTrackUpdated);
+  websocket.on('track_deleted', handleTrackDeleted);
+});
+
+onUnmounted(() => {
+  websocket.off('track_updated', handleTrackUpdated);
+  websocket.off('track_deleted', handleTrackDeleted);
+});
 
 // Expose refresh method
 defineExpose({

@@ -3,6 +3,14 @@
     <header class="app-header">
       <h1>🎵 RPG Music Streaming</h1>
       <div class="header-actions">
+        <button
+          @click="toggleManageLibrary"
+          class="manage-btn"
+          :class="{ active: showManageLibrary }"
+          :title="showManageLibrary ? 'Close Manage Library' : 'Manage Library'"
+        >
+          {{ showManageLibrary ? '✕ Close' : '⚙️ Manage Library' }}
+        </button>
         <div class="stats">
           <span class="stat">{{ stats.tracks }} tracks</span>
           <span class="stat">{{ stats.clients }} clients</span>
@@ -34,8 +42,8 @@
         </div>
       </section>
 
-      <!-- Bottom Row: Library and Folders -->
-      <section class="bottom-row">
+      <!-- Bottom Row: Library and Folders OR Manage Library -->
+      <section class="bottom-row" v-if="!showManageLibrary">
         <!-- Left: Music Library -->
         <div class="library-column">
           <MusicLibraryPanel
@@ -54,6 +62,17 @@
           />
         </div>
       </section>
+
+      <!-- Manage Library Panel (replaces Library and Folders) -->
+      <section class="manage-library-row" v-if="showManageLibrary">
+        <ManageLibraryPanel
+          ref="manageLibraryRef"
+          :current-track="currentTrack"
+          @close="closeManageLibrary"
+          @refresh="handleRefresh"
+          @track-play="onAddTrackAndPlay"
+        />
+      </section>
     </main>
   </div>
 </template>
@@ -64,6 +83,7 @@ import AudioPlayer from './components/AudioPlayer.vue';
 import MusicLibraryPanel from './components/MusicLibraryPanel.vue';
 import FolderManagerPanel from './components/FolderManagerPanel.vue';
 import PlaylistPanel from './components/PlaylistPanel.vue';
+import ManageLibraryPanel from './components/ManageLibraryPanel.vue';
 import api from './services/api';
 import websocket from './services/websocket';
 
@@ -74,6 +94,7 @@ export default {
     MusicLibraryPanel,
     FolderManagerPanel,
     PlaylistPanel,
+    ManageLibraryPanel,
   },
   setup() {
     const currentTrackId = ref(null);
@@ -81,6 +102,8 @@ export default {
     const libraryRef = ref(null);
     const folderManagerRef = ref(null);
     const playlistRef = ref(null);
+    const manageLibraryRef = ref(null);
+    const showManageLibrary = ref(false);
     const stats = ref({
       tracks: 0,
       clients: 0,
@@ -168,6 +191,35 @@ export default {
     const hasNext = computed(() => false);
     const hasPrevious = computed(() => false);
 
+    /**
+     * Toggle manage library view
+     */
+    const toggleManageLibrary = () => {
+      showManageLibrary.value = !showManageLibrary.value;
+    };
+
+    /**
+     * Close manage library view
+     */
+    const closeManageLibrary = () => {
+      showManageLibrary.value = false;
+    };
+
+    /**
+     * Handle refresh after manage library changes
+     */
+    const handleRefresh = async () => {
+      // Refresh library and folders
+      if (libraryRef.value) {
+        await libraryRef.value.refresh();
+      }
+      if (folderManagerRef.value) {
+        await folderManagerRef.value.refresh();
+      }
+      // Reload stats
+      await loadStats();
+    };
+
     onMounted(() => {
       // Load initial stats
       loadStats();
@@ -197,6 +249,8 @@ export default {
       libraryRef,
       folderManagerRef,
       playlistRef,
+      manageLibraryRef,
+      showManageLibrary,
       stats,
       hasNext,
       hasPrevious,
@@ -204,6 +258,9 @@ export default {
       onAddTrackAndPlay,
       playNextTrack,
       playPreviousTrack,
+      toggleManageLibrary,
+      closeManageLibrary,
+      handleRefresh,
     };
   },
 };
@@ -260,6 +317,33 @@ body {
   gap: 15px;
 }
 
+.manage-btn {
+  padding: 8px 16px;
+  background: #4CAF50;
+  border: 1px solid #4CAF50;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.manage-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
+}
+
+.manage-btn.active {
+  background: #444;
+  border-color: #555;
+}
+
+.manage-btn.active:hover {
+  background: #555;
+  border-color: #666;
+}
+
 .stats {
   display: flex;
   gap: 12px;
@@ -301,6 +385,14 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  min-height: 350px;
+  overflow: hidden;
+}
+
+.manage-library-row {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 350px;
   overflow: hidden;
 }

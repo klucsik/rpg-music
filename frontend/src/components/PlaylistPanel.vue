@@ -178,10 +178,30 @@ const handleStateSync = (data) => {
   }
 };
 
+/**
+ * Handle track updated from WebSocket
+ */
+const handleTrackUpdated = (data) => {
+  console.log('Track updated, refreshing playlist:', data);
+  // Refresh playlist to get updated track metadata
+  refresh();
+};
+
+/**
+ * Handle track deleted from WebSocket
+ */
+const handleTrackDeleted = (data) => {
+  console.log('Track deleted, refreshing playlist:', data);
+  // Refresh playlist to remove deleted track
+  refresh();
+};
+
 // Set up WebSocket listeners
 onMounted(() => {
   websocket.on('loop_mode_change', handleLoopModeChange);
   websocket.on('state_sync', handleStateSync);
+  websocket.on('track_updated', handleTrackUpdated);
+  websocket.on('track_deleted', handleTrackDeleted);
   
   // Request current state to sync loop mode
   websocket.requestState();
@@ -190,6 +210,8 @@ onMounted(() => {
 onUnmounted(() => {
   websocket.off('loop_mode_change', handleLoopModeChange);
   websocket.off('state_sync', handleStateSync);
+  websocket.off('track_updated', handleTrackUpdated);
+  websocket.off('track_deleted', handleTrackDeleted);
 });
 
 /**

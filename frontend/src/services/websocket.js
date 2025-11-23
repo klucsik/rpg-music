@@ -108,6 +108,16 @@ class WebSocketService {
       this.emit('playlist_settings_update', data);
     });
 
+    this.socket.on('track_updated', (data) => {
+      console.log('✏️ Track updated received:', data);
+      this.emit('track_updated', data);
+    });
+
+    this.socket.on('track_deleted', (data) => {
+      console.log('🗑️ Track deleted received:', data);
+      this.emit('track_deleted', data);
+    });
+
     return this.socket;
   }
 

@@ -137,20 +137,10 @@ export async function scanMusicLibrary(onProgress = null) {
         };
         
         if (existingTrack) {
-          // Update existing track
-          trackQueries.update(existingTrack.id, {
-            filename: trackData.filename,
-            title: trackData.title,
-            artist: trackData.artist,
-            album: trackData.album,
-            duration: trackData.duration,
-            format: trackData.format,
-            bitrate: trackData.bitrate,
-            sample_rate: trackData.sample_rate,
-            file_size: trackData.file_size,
-          });
-          stats.updated++;
-          logger.debug({ filepath: file.relativePath }, 'Track updated');
+          // Track already exists - skip it entirely
+          // This preserves any user edits and prevents unnecessary updates
+          stats.skipped++;
+          logger.debug({ filepath: file.relativePath }, 'Track already exists, skipped');
         } else {
           // Insert new track
           trackQueries.insert(trackData);

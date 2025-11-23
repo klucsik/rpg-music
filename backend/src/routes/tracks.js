@@ -1,5 +1,6 @@
 import express from 'express';
 import { trackQueries, trackFolderQueries } from '../db/database.js';
+import { getIO } from '../websocket/socketServer.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -114,6 +115,151 @@ router.get('/:id/metadata', (req, res) => {
     logger.error({ error, trackId: req.params.id }, 'Failed to get track metadata');
     res.status(500).json({
       error: 'Failed to retrieve track metadata',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Update track metadata
+ * PUT /api/tracks/:id
+ */
+router.put('/:id', (req, res) => {
+  try {
+    const trackId = req.params.id;
+    
+    // Check if track exists
+    const existingTrack = trackQueries.getById(trackId);
+    if (!existingTrack) {
+      return res.status(404).json({
+        error: 'Track not found',
+        id: trackId,
+      });
+    }
+    
+    // Validate and sanitize input
+    const allowedFields = ['title', 'artist', 'album'];
+    const updates = {};
+    
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        // Validate that it's a string
+        if (typeof req.body[field] !== 'string') {
+          return res.status(400).json({
+            error: 'Invalid field type',
+            field,
+            expected: 'string',
+          });
+        }
+        
+        // Trim whitespace and limit length
+        const value = req.body[field].trim().substring(0, 500);
+        updates[field] = value;
+      }
+    }
+    
+    // Check if there are any valid updates
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        error: 'No valid fields to update',
+        allowedFields,
+      });
+    }
+    
+    // Perform update
+    const result = trackQueries.update(trackId, updates);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        error: 'Track not found or no changes made',
+        id: trackId,
+      });
+    }
+    
+    // Get updated track
+    const updatedTrack = trackQueries.getById(trackId);
+    
+    logger.info({ trackId, updates }, 'Track metadata updated');
+    
+    // Broadcast track update to all clients
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('track_updated', { 
+          trackId, 
+          updates: updatedTrack 
+        });
+        logger.info({ event: 'track_updated', trackId }, '📢 Broadcasting track update to all clients');
+      }
+    } catch (err) {
+      logger.error({ error: err }, 'Failed to emit track update');
+    }
+    
+    res.json({
+      message: 'Track updated successfully',
+      track: updatedTrack,
+    });
+  } catch (error) {
+    logger.error({ error, trackId: req.params.id }, 'Failed to update track');
+    res.status(500).json({
+      error: 'Failed to update track',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Delete track
+ * DELETE /api/tracks/:id
+ */
+router.delete('/:id', (req, res) => {
+  try {
+    const trackId = req.params.id;
+    
+    // Check if track exists
+    const track = trackQueries.getById(trackId);
+    if (!track) {
+      return res.status(404).json({
+        error: 'Track not found',
+        id: trackId,
+      });
+    }
+    
+    // Remove track from all collections
+    trackFolderQueries.removeTrackFromAll(trackId);
+    
+    // Delete the track
+    const result = trackQueries.delete(trackId);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({
+        error: 'Track not found',
+        id: trackId,
+      });
+    }
+    
+    logger.info({ trackId, filepath: track.filepath }, 'Track deleted from database');
+    
+    // Broadcast track deletion to all clients
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('track_deleted', { trackId });
+        logger.info({ event: 'track_deleted', trackId }, '📢 Broadcasting track deletion to all clients');
+      }
+    } catch (err) {
+      logger.error({ error: err }, 'Failed to emit track deletion');
+    }
+    
+    res.json({
+      message: 'Track deleted successfully',
+      id: trackId,
+      note: 'The physical file was not deleted. Only the database entry was removed.',
+    });
+  } catch (error) {
+    logger.error({ error, trackId: req.params.id }, 'Failed to delete track');
+    res.status(500).json({
+      error: 'Failed to delete track',
       message: error.message,
     });
   }

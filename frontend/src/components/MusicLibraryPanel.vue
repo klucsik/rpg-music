@@ -99,11 +99,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import SimpleDialog from './SimpleDialog.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
+import websocket from '../services/websocket';
 
 const props = defineProps({
   currentTrack: {
@@ -213,9 +214,32 @@ const formatDuration = (seconds) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+/**
+ * Handle track updated from WebSocket
+ */
+const handleTrackUpdated = (data) => {
+  console.log('Track updated, refreshing library:', data);
+  refresh();
+};
+
+/**
+ * Handle track deleted from WebSocket
+ */
+const handleTrackDeleted = (data) => {
+  console.log('Track deleted, refreshing library:', data);
+  refresh();
+};
+
 // Load system info on mount
 onMounted(() => {
   loadSystemInfo();
+  websocket.on('track_updated', handleTrackUpdated);
+  websocket.on('track_deleted', handleTrackDeleted);
+});
+
+onUnmounted(() => {
+  websocket.off('track_updated', handleTrackUpdated);
+  websocket.off('track_deleted', handleTrackDeleted);
 });
 
 // Expose refresh method

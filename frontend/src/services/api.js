@@ -47,6 +47,19 @@ class ApiClient {
     return this.getTracks({ search: query });
   }
 
+  async updateTrack(id, updates) {
+    return this.request(`/api/tracks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteTrack(id) {
+    return this.request(`/api/tracks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Collections (Unified API)
   async getCollections(type = null, parentId = null) {
     const params = {};
