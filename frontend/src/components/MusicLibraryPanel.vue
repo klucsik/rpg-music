@@ -59,15 +59,29 @@
           draggable="true"
           @dragstart="handleDragStart(track, $event)"
         >
-          <div class="track-title" :title="track.title">
-            {{ track.title || 'Unknown' }}
-            <span v-if="track.youtube_video_id" class="youtube-badge" title="Downloaded from YouTube">
-              ▶️
-            </span>
+          <!-- Thumbnail -->
+          <div v-if="track.youtube_thumbnail" class="track-thumbnail">
+            <img 
+              :src="track.youtube_thumbnail" 
+              :alt="track.title"
+              @error="handleImageError"
+            />
           </div>
-          <div class="track-meta" :title="track.artist">
-            {{ track.artist || 'Unknown Artist' }}
-            <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
+          <div v-else class="track-thumbnail-placeholder">
+            🎵
+          </div>
+          
+          <div class="track-text">
+            <div class="track-title" :title="track.title">
+              {{ track.title || 'Unknown' }}
+              <span v-if="track.youtube_video_id" class="youtube-badge" title="Downloaded from YouTube">
+                ▶️
+              </span>
+            </div>
+            <div class="track-meta" :title="track.artist">
+              {{ track.artist || 'Unknown Artist' }}
+              <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
+            </div>
           </div>
         </div>
       </template>
@@ -268,6 +282,14 @@ const formatDuration = (seconds) => {
 };
 
 /**
+ * Handle image loading errors
+ */
+const handleImageError = (event) => {
+  event.target.style.display = 'none';
+  event.target.parentElement.classList.add('error');
+};
+
+/**
  * Handle track updated from WebSocket
  */
 const handleTrackUpdated = (data) => {
@@ -459,8 +481,8 @@ defineExpose({
 
 .track-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
   flex: 1;
   min-width: 0;
   cursor: grab;
@@ -468,6 +490,43 @@ defineExpose({
 
 .track-info:active {
   cursor: grabbing;
+}
+
+.track-thumbnail {
+  width: 71px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #333;
+}
+
+.track-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.track-thumbnail.error,
+.track-thumbnail-placeholder {
+  width: 71px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  color: #666;
+}
+
+.track-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
 .track-title {

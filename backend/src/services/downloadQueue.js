@@ -189,6 +189,7 @@ class DownloadQueue {
             file_size: audioMetadata.file_size,
             youtube_url: job.youtube_url,
             youtube_video_id: job.youtube_video_id,
+            youtube_thumbnail: job.youtube_thumbnail,
             created_at: Date.now(),
             updated_at: Date.now(),
           };

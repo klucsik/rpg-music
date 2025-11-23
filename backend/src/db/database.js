@@ -26,6 +26,7 @@ async function runMigrations() {
   const tableInfo = db.prepare("PRAGMA table_info(tracks)").all();
   const hasYoutubeUrl = tableInfo.some(col => col.name === 'youtube_url');
   const hasYoutubeVideoId = tableInfo.some(col => col.name === 'youtube_video_id');
+  const hasYoutubeThumbnail = tableInfo.some(col => col.name === 'youtube_thumbnail');
   
   if (!hasYoutubeUrl) {
     logger.info('Adding youtube_url column to tracks table');
@@ -36,6 +37,11 @@ async function runMigrations() {
     logger.info('Adding youtube_video_id column to tracks table');
     db.exec('ALTER TABLE tracks ADD COLUMN youtube_video_id TEXT');
     db.exec('CREATE INDEX IF NOT EXISTS idx_tracks_youtube_video_id ON tracks(youtube_video_id)');
+  }
+  
+  if (!hasYoutubeThumbnail) {
+    logger.info('Adding youtube_thumbnail column to tracks table');
+    db.exec('ALTER TABLE tracks ADD COLUMN youtube_thumbnail TEXT');
   }
   
   // Check if download_jobs table exists
@@ -166,10 +172,10 @@ export const trackQueries = {
     const stmt = getDb().prepare(`
       INSERT INTO tracks (id, filepath, filename, title, artist, album, duration, 
                          format, bitrate, sample_rate, file_size, youtube_url, 
-                         youtube_video_id, created_at, updated_at)
+                         youtube_video_id, youtube_thumbnail, created_at, updated_at)
       VALUES (@id, @filepath, @filename, @title, @artist, @album, @duration,
               @format, @bitrate, @sample_rate, @file_size, @youtube_url,
-              @youtube_video_id, @created_at, @updated_at)
+              @youtube_video_id, @youtube_thumbnail, @created_at, @updated_at)
     `);
     return stmt.run(track);
   },

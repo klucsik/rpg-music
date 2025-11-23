@@ -68,10 +68,24 @@
           <slot name="track" :track="track" :index="index">
             <!-- Default track rendering -->
             <div class="track-info">
-              <div class="track-title" :title="track.title">{{ track.title || 'Unknown' }}</div>
-              <div class="track-meta" :title="track.artist">
-                {{ track.artist || 'Unknown Artist' }}
-                <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
+              <!-- Thumbnail -->
+              <div v-if="track.youtube_thumbnail" class="track-thumbnail">
+                <img 
+                  :src="track.youtube_thumbnail" 
+                  :alt="track.title"
+                  @error="handleImageError"
+                />
+              </div>
+              <div v-else class="track-thumbnail-placeholder">
+                🎵
+              </div>
+              
+              <div class="track-text">
+                <div class="track-title" :title="track.title">{{ track.title || 'Unknown' }}</div>
+                <div class="track-meta" :title="track.artist">
+                  {{ track.artist || 'Unknown Artist' }}
+                  <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
+                </div>
               </div>
             </div>
           </slot>
@@ -171,6 +185,14 @@ const formatDuration = (seconds) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+/**
+ * Handle image loading errors
+ */
+const handleImageError = (event) => {
+  event.target.style.display = 'none';
+  event.target.parentElement.classList.add('error');
 };
 
 /**
@@ -488,8 +510,46 @@ const handleContainerDrop = (event) => {
 
 .track-info {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.track-thumbnail {
+  width: 71px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #333;
+}
+
+.track-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.track-thumbnail.error,
+.track-thumbnail-placeholder {
+  width: 71px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+  color: #666;
+}
+
+.track-text {
+  display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  flex: 1;
 }
 
 .track-title {

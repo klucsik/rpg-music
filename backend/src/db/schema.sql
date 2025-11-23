@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     file_size INTEGER,
     youtube_url TEXT,
     youtube_video_id TEXT,
+    youtube_thumbnail TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
