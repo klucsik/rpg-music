@@ -151,6 +151,10 @@ class ApiClient {
     return this.request('/api/playback/repeat', { method: 'POST' });
   }
 
+  async toggleLoop() {
+    return this.request('/api/playback/loop', { method: 'POST' });
+  }
+
   async getPlaybackState() {
     return this.request('/api/playback/state');
   }

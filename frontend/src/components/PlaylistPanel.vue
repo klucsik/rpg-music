@@ -36,6 +36,15 @@
                 🔀 Shuffle
               </button>
               <button
+                @click="toggleLoop"
+                :disabled="loading"
+                class="loop-btn"
+                :class="{ active: loopPlaylist }"
+                :title="loopPlaylist ? 'Loop Playlist: On' : 'Loop Playlist: Off'"
+              >
+                🔄 {{ loopPlaylist ? 'Looping' : 'Loop' }}
+              </button>
+              <button
                 @click="showSaveDialog = true"
                 :disabled="isEmpty || loading"
                 class="save-btn"
@@ -92,10 +101,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
+import websocket from '../services/websocket';
 
 const props = defineProps({
   currentTrack: {
@@ -143,10 +153,44 @@ const folders = ref([]);
 const selectedFolderId = ref(null);
 const savingToFolder = ref(false);
 
+// Loop playlist state
+const loopPlaylist = ref(false);
+
 // Watch for track changes and emit update event
 watch(tracks, (newTracks) => {
   emit('playlist-updated', newTracks);
 }, { deep: true });
+
+/**
+ * Handle loop mode change from WebSocket
+ */
+const handleLoopModeChange = (data) => {
+  console.log('Loop playlist mode change:', data);
+  loopPlaylist.value = data.loopPlaylist;
+};
+
+/**
+ * Handle state sync from WebSocket
+ */
+const handleStateSync = (data) => {
+  if (typeof data.loopPlaylist === 'boolean') {
+    loopPlaylist.value = data.loopPlaylist;
+  }
+};
+
+// Set up WebSocket listeners
+onMounted(() => {
+  websocket.on('loop_mode_change', handleLoopModeChange);
+  websocket.on('state_sync', handleStateSync);
+  
+  // Request current state to sync loop mode
+  websocket.requestState();
+});
+
+onUnmounted(() => {
+  websocket.off('loop_mode_change', handleLoopModeChange);
+  websocket.off('state_sync', handleStateSync);
+});
 
 /**
  * Handle double-click to play track
@@ -199,6 +243,18 @@ const handleClear = async () => {
     await clearTracks();
   } catch (err) {
     console.error('Failed to clear playlist:', err);
+  }
+};
+
+/**
+ * Toggle loop playlist mode
+ */
+const toggleLoop = async () => {
+  try {
+    await api.toggleLoop();
+    console.log('Loop playlist mode toggle sent to server');
+  } catch (err) {
+    console.error('Failed to toggle loop playlist mode:', err);
   }
 };
 
@@ -336,6 +392,15 @@ defineExpose({
 
 .clear-btn:hover:not(:disabled) {
   background: #f44336 !important;
+}
+
+.loop-btn.active {
+  background: #4CAF50 !important;
+  border-color: #4CAF50 !important;
+}
+
+.loop-btn:hover:not(:disabled) {
+  background: #4CAF50 !important;
 }
 
 .playlist-stats {

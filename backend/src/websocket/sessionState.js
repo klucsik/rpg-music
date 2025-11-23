@@ -12,6 +12,7 @@ class SessionState {
     this.lastUpdateTime = null; // Server timestamp of last state change
     this.volume = 0.7; // 0.0 to 1.0
     this.repeatMode = false; // Whether to repeat the current track
+    this.loopPlaylist = false; // Whether to loop the entire playlist
   }
 
   /**
@@ -107,6 +108,22 @@ class SessionState {
   }
 
   /**
+   * Toggle loop playlist mode
+   */
+  toggleLoop() {
+    this.loopPlaylist = !this.loopPlaylist;
+    return this.getState();
+  }
+
+  /**
+   * Set loop playlist mode
+   */
+  setLoop(enabled) {
+    this.loopPlaylist = !!enabled;
+    return this.getState();
+  }
+
+  /**
    * Get current expected position (for sync checks)
    */
   getCurrentPosition() {
@@ -128,6 +145,7 @@ class SessionState {
       lastUpdateTime: this.lastUpdateTime,
       volume: this.volume,
       repeatMode: this.repeatMode,
+      loopPlaylist: this.loopPlaylist,
       serverTime: Date.now(),
     };
   }

@@ -165,6 +165,25 @@ router.post('/repeat', (req, res) => {
 });
 
 /**
+ * Toggle loop playlist mode
+ * POST /api/playback/loop
+ */
+router.post('/loop', (req, res) => {
+  try {
+    const syncController = getSyncController();
+    const result = syncController.toggleLoop();
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to toggle loop playlist mode');
+    res.status(500).json({
+      error: 'Failed to toggle loop playlist mode',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * Get current playback state
  * GET /api/playback/state
  */

@@ -225,6 +225,27 @@ class SyncController {
   }
 
   /**
+   * Toggle loop playlist mode
+   */
+  toggleLoop() {
+    sessionState.toggleLoop();
+
+    const payload = {
+      event: 'loop_mode_change',
+      data: {
+        loopPlaylist: sessionState.loopPlaylist,
+        serverTimestamp: Date.now(),
+      },
+    };
+
+    this.io.emit('loop_mode_change', payload.data);
+
+    logger.info({ loopPlaylist: sessionState.loopPlaylist }, 'Loop playlist mode changed');
+
+    return { success: true, state: sessionState.getState() };
+  }
+
+  /**
    * Get current state
    */
   getState() {
@@ -284,7 +305,18 @@ class SyncController {
         return await this.playTrack(nextTrack.id);
       }
       
-      // We're at the end of the playlist - just stop
+      // We're at the end of the playlist
+      if (sessionState.loopPlaylist && playlist.length > 0) {
+        // Loop back to the first track
+        const firstTrack = playlist[0];
+        logger.info({ 
+          firstTrackTitle: firstTrack.title,
+          playlistLength: playlist.length 
+        }, 'Looping playlist - playing first track');
+        return await this.playTrack(firstTrack.id);
+      }
+      
+      // No loop mode - just stop
       logger.info('End of playlist reached, stopping playback');
       this.stop();
       return { success: false, reason: 'end_of_playlist' };
