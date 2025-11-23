@@ -84,7 +84,6 @@
       <div class="dialog">
         <h3>Delete Folder?</h3>
         <p>Are you sure you want to delete "{{ folderToDelete?.name }}"?</p>
-        <p class="warning">This will not delete the tracks, only the folder organization.</p>
         
         <div class="dialog-actions">
           <button @click="showDeleteDialog = false" class="cancel-btn">Cancel</button>

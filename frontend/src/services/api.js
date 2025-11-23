@@ -198,6 +198,22 @@ class ApiClient {
     return this.request(`/api/downloads/search?${params}`);
   }
 
+  async getPlaylistInfo(playlistUrl) {
+    const params = new URLSearchParams({ url: playlistUrl });
+    return this.request(`/api/downloads/playlist?${params}`);
+  }
+
+  async addPlaylistDownload(playlistUrl, folderIds = null) {
+    const body = { playlistUrl };
+    if (folderIds && folderIds.length > 0) {
+      body.folder_ids = folderIds;
+    }
+    return this.request('/api/downloads/playlist', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
   async addDownloadJob(youtubeUrl, folderIds = null) {
     const body = { youtubeUrl };
     if (folderIds && folderIds.length > 0) {

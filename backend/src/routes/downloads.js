@@ -1,7 +1,13 @@
 import express from 'express';
 import logger from '../utils/logger.js';
 import downloadQueue from '../services/downloadQueue.js';
-import { searchYouTube, isValidYouTubeUrl, fetchVideoMetadata } from '../services/ytdlpDownloader.js';
+import { 
+  searchYouTube, 
+  isValidYouTubeUrl, 
+  fetchVideoMetadata, 
+  isPlaylistUrl, 
+  fetchPlaylistMetadata 
+} from '../services/ytdlpDownloader.js';
 
 const router = express.Router();
 
@@ -40,6 +46,125 @@ router.get('/search', async (req, res) => {
     logger.error({ error }, 'YouTube search failed');
     res.status(500).json({
       error: 'Search failed',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Fetch playlist information
+ * GET /api/downloads/playlist?url=playlist_url
+ */
+router.get('/playlist', async (req, res) => {
+  try {
+    const { url } = req.query;
+    
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({
+        error: 'Playlist URL is required',
+      });
+    }
+    
+    if (!isPlaylistUrl(url)) {
+      return res.status(400).json({
+        error: 'Invalid playlist URL',
+      });
+    }
+    
+    logger.info({ url }, 'Playlist info requested');
+    
+    const playlistData = await fetchPlaylistMetadata(url);
+    
+    res.json(playlistData);
+    
+  } catch (error) {
+    logger.error({ error }, 'Failed to fetch playlist info');
+    res.status(500).json({
+      error: 'Failed to fetch playlist information',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Add all videos from a playlist to download queue
+ * POST /api/downloads/playlist
+ * Body: { playlistUrl: string, folder_ids?: array }
+ */
+router.post('/playlist', async (req, res) => {
+  try {
+    const { playlistUrl, folder_ids } = req.body;
+    
+    if (!playlistUrl || typeof playlistUrl !== 'string') {
+      return res.status(400).json({
+        error: 'Playlist URL is required',
+      });
+    }
+    
+    if (!isPlaylistUrl(playlistUrl)) {
+      return res.status(400).json({
+        error: 'Invalid playlist URL',
+      });
+    }
+    
+    logger.info({ playlistUrl, folder_ids }, 'Playlist download requested');
+    
+    // Fetch playlist metadata
+    const playlistData = await fetchPlaylistMetadata(playlistUrl);
+    
+    if (!playlistData.videos || playlistData.videos.length === 0) {
+      return res.status(400).json({
+        error: 'Playlist is empty or could not be fetched',
+      });
+    }
+    
+    // Add each video to the download queue
+    const jobs = [];
+    const errors = [];
+    
+    for (const video of playlistData.videos) {
+      try {
+        const metadata = {
+          video_id: video.video_id,
+          title: video.title,
+          channel: video.channel,
+          duration: video.duration,
+          thumbnail: video.thumbnail,
+          url: video.url,
+        };
+        
+        const job = await downloadQueue.addJob(video.url, metadata, folder_ids);
+        jobs.push(job);
+      } catch (error) {
+        // Log but continue with other videos
+        logger.warn({ 
+          video_id: video.video_id, 
+          title: video.title, 
+          error: error.message 
+        }, 'Failed to add video from playlist');
+        
+        errors.push({
+          video_id: video.video_id,
+          title: video.title,
+          error: error.message,
+        });
+      }
+    }
+    
+    res.status(201).json({
+      message: `Added ${jobs.length} videos from playlist to download queue`,
+      playlist_title: playlistData.playlist_title,
+      total_videos: playlistData.video_count,
+      added: jobs.length,
+      skipped: errors.length,
+      jobs,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+    
+  } catch (error) {
+    logger.error({ error }, 'Failed to add playlist downloads');
+    res.status(500).json({
+      error: 'Failed to add playlist downloads',
       message: error.message,
     });
   }

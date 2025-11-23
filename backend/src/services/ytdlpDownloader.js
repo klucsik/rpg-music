@@ -25,14 +25,46 @@ export function extractVideoId(url) {
 }
 
 /**
- * Validate YouTube URL
+ * Check if URL is a playlist
+ */
+export function isPlaylistUrl(url) {
+  const playlistPatterns = [
+    /[?&]list=([a-zA-Z0-9_-]+)/,
+    /youtube\.com\/playlist\?list=([a-zA-Z0-9_-]+)/,
+  ];
+  
+  return playlistPatterns.some(pattern => pattern.test(url));
+}
+
+/**
+ * Extract playlist ID from URL
+ */
+export function extractPlaylistId(url) {
+  const playlistPatterns = [
+    /[?&]list=([a-zA-Z0-9_-]+)/,
+    /youtube\.com\/playlist\?list=([a-zA-Z0-9_-]+)/,
+  ];
+  
+  for (const pattern of playlistPatterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  throw new Error('Invalid playlist URL');
+}
+
+/**
+ * Validate YouTube URL (video or playlist)
  */
 export function isValidYouTubeUrl(url) {
   try {
     extractVideoId(url);
     return true;
   } catch {
-    return false;
+    // If not a video, check if it's a playlist
+    return isPlaylistUrl(url);
   }
 }
 
@@ -85,6 +117,97 @@ export async function fetchVideoMetadata(videoIdOrUrl) {
       } catch (error) {
         logger.error({ error }, 'Failed to parse video metadata JSON');
         reject(new Error('Failed to parse video metadata'));
+      }
+    });
+    
+    ytdlp.on('error', (error) => {
+      logger.error({ error }, 'Failed to spawn yt-dlp');
+      reject(error);
+    });
+  });
+}
+
+/**
+ * Fetch playlist metadata without downloading
+ */
+export async function fetchPlaylistMetadata(playlistUrl) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '--dump-json',
+      '--flat-playlist',
+      '--yes-playlist',
+      playlistUrl,
+    ];
+    
+    logger.debug({ args }, 'Fetching playlist metadata with yt-dlp');
+    
+    const ytdlp = spawn(config.ytdlpPath, args);
+    let stdout = '';
+    let stderr = '';
+    
+    ytdlp.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    ytdlp.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    ytdlp.on('close', (code) => {
+      if (code !== 0) {
+        logger.error({ code, stderr }, 'Failed to fetch playlist metadata');
+        return reject(new Error(`yt-dlp failed with code ${code}: ${stderr}`));
+      }
+      
+      try {
+        // Parse each line as a separate JSON object (one per video)
+        const lines = stdout.trim().split('\n').filter(line => line.trim());
+        
+        if (lines.length === 0) {
+          return reject(new Error('Empty playlist or failed to fetch'));
+        }
+        
+        // First line may contain playlist info
+        const firstItem = JSON.parse(lines[0]);
+        const playlistTitle = firstItem.playlist_title || firstItem.playlist || 'Unknown Playlist';
+        const playlistId = firstItem.playlist_id || extractPlaylistId(playlistUrl);
+        
+        // Parse all videos
+        const videos = lines.map(line => {
+          try {
+            const data = JSON.parse(line);
+            return {
+              video_id: data.id,
+              title: data.title,
+              channel: data.uploader || data.channel,
+              duration: data.duration,
+              thumbnail: data.thumbnail || data.thumbnails?.[0]?.url,
+              url: data.url || `https://www.youtube.com/watch?v=${data.id}`,
+            };
+          } catch (error) {
+            logger.warn({ line, error }, 'Failed to parse playlist video line');
+            return null;
+          }
+        }).filter(video => video !== null);
+        
+        const result = {
+          playlist_id: playlistId,
+          playlist_title: playlistTitle,
+          playlist_url: playlistUrl,
+          video_count: videos.length,
+          videos,
+        };
+        
+        logger.info({ 
+          playlist_id: playlistId, 
+          title: playlistTitle, 
+          video_count: videos.length 
+        }, 'Playlist metadata fetched');
+        
+        resolve(result);
+      } catch (error) {
+        logger.error({ error }, 'Failed to parse playlist metadata JSON');
+        reject(new Error('Failed to parse playlist metadata'));
       }
     });
     
@@ -328,8 +451,11 @@ export async function searchYouTube(query, limit = 10) {
 
 export default {
   extractVideoId,
+  extractPlaylistId,
   isValidYouTubeUrl,
+  isPlaylistUrl,
   fetchVideoMetadata,
+  fetchPlaylistMetadata,
   downloadAudio,
   searchYouTube,
 };

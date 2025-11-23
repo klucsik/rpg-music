@@ -24,7 +24,7 @@
             ref="searchInput"
             v-model="searchQuery"
             type="text"
-            placeholder="Search YouTube or paste a YouTube link..."
+            placeholder="Search YouTube or paste a video/playlist link..."
             @keyup.enter="handleSearch"
             class="search-input"
           />
@@ -40,7 +40,7 @@
         <!-- Loading State -->
         <div v-if="searching" class="loading">
           <div class="spinner"></div>
-          <p>Searching YouTube...</p>
+          <p>{{ isPlaylistUrl(searchQuery) ? 'Loading playlist...' : 'Searching YouTube...' }}</p>
         </div>
 
         <!-- Error Message -->
@@ -130,7 +130,7 @@
         <!-- Initial State -->
         <div v-if="!searching && !error && !hasSearched" class="initial-state">
           <p>🔍 Search YouTube or paste a link</p>
-          <p class="hint">Enter keywords to search, or paste a YouTube URL to download directly</p>
+          <p class="hint">Enter keywords to search, or paste a YouTube video/playlist URL to download</p>
         </div>
       </div>
 
@@ -192,6 +192,17 @@ const isYouTubeUrl = (text) => {
 };
 
 /**
+ * Check if input is a YouTube playlist URL
+ */
+const isPlaylistUrl = (text) => {
+  const playlistPatterns = [
+    /[?&]list=([a-zA-Z0-9_-]+)/,
+    /youtube\.com\/playlist\?list=([a-zA-Z0-9_-]+)/,
+  ];
+  return playlistPatterns.some(pattern => pattern.test(text));
+};
+
+/**
  * Handle search or URL download
  */
 const handleSearch = async () => {
@@ -201,10 +212,14 @@ const handleSearch = async () => {
 
   const query = searchQuery.value.trim();
   
-  // Check if it's a URL - if so, try to add it directly as a download
-  if (isYouTubeUrl(query)) {
+  // Check if it's a playlist URL
+  if (isPlaylistUrl(query)) {
+    await handlePlaylistUrl(query);
+  } else if (isYouTubeUrl(query)) {
+    // Check if it's a regular video URL
     await handleDirectUrl(query);
   } else {
+    // It's a search query
     await handleYouTubeSearch(query);
   }
 };
@@ -246,6 +261,64 @@ const handleDirectUrl = async (url) => {
       error.value = 'Invalid YouTube URL. Please check the link and try again.';
     } else {
       error.value = 'Failed to start download. Please check the URL and try again.';
+    }
+  } finally {
+    searching.value = false;
+  }
+};
+
+/**
+ * Handle playlist URL download
+ */
+const handlePlaylistUrl = async (url) => {
+  searching.value = true;
+  error.value = null;
+  results.value = [];
+  lastSearchQuery.value = url;
+
+  try {
+    // Add all videos from playlist to download queue
+    const response = await api.addPlaylistDownload(
+      url, 
+      selectedFolderIds.value && selectedFolderIds.value.length > 0 
+        ? selectedFolderIds.value 
+        : null
+    );
+    
+    // Show success message with details
+    const addedCount = response.added || 0;
+    const skippedCount = response.skipped || 0;
+    const totalCount = response.total_videos || 0;
+    
+    let message = `Playlist "${response.playlist_title || 'Unknown'}" processed:\n`;
+    message += `${addedCount} video${addedCount !== 1 ? 's' : ''} added to download queue`;
+    
+    if (skippedCount > 0) {
+      message += `\n${skippedCount} video${skippedCount !== 1 ? 's' : ''} skipped (already downloaded or in queue)`;
+    }
+    
+    successMessage.value = message;
+    
+    // Emit event for each job added
+    if (response.jobs && response.jobs.length > 0) {
+      response.jobs.forEach(job => emit('download-started', job));
+    }
+    
+    // Clear the input and close after a longer delay for playlists
+    setTimeout(() => {
+      successMessage.value = null;
+      close();
+    }, 4000);
+    
+  } catch (err) {
+    console.error('Playlist download failed:', err);
+    
+    if (err.message && err.message.includes('Invalid')) {
+      error.value = 'Invalid playlist URL. Please check the link and try again.';
+    } else if (err.message && err.message.includes('empty')) {
+      error.value = 'This playlist is empty or private.';
+    } else {
+      error.value = 'Failed to process playlist. Please check the URL and try again.';
     }
   } finally {
     searching.value = false;
@@ -549,8 +622,15 @@ onUnmounted(() => {
   margin-bottom: 20px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
+}
+
+.error-message p,
+.success-message p {
+  margin: 0;
+  white-space: pre-line;
+  flex: 1;
 }
 
 .error-message {
