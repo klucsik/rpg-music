@@ -1,7 +1,7 @@
 <template>
   <div id="app-content">
     <header class="app-header">
-      <h1>🎵 RPG Music Streaming</h1>
+      <h1>🎵 MuzsikApp</h1>
       <div class="header-actions">
         <button
           @click="toggleManageLibrary"
