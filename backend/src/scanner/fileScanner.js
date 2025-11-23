@@ -134,6 +134,7 @@ export async function scanMusicLibrary(onProgress = null) {
           file_size: metadata.file_size,
           youtube_url: null,
           youtube_video_id: null,
+          youtube_thumbnail: null,
           created_at: existingTrack?.created_at || Date.now(),
           updated_at: Date.now(),
         };
