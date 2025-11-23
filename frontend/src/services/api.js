@@ -198,10 +198,14 @@ class ApiClient {
     return this.request(`/api/downloads/search?${params}`);
   }
 
-  async addDownloadJob(youtubeUrl) {
+  async addDownloadJob(youtubeUrl, folderIds = null) {
+    const body = { youtubeUrl };
+    if (folderIds && folderIds.length > 0) {
+      body.folder_ids = folderIds;
+    }
     return this.request('/api/downloads', {
       method: 'POST',
-      body: JSON.stringify({ youtubeUrl }),
+      body: JSON.stringify(body),
     });
   }
 

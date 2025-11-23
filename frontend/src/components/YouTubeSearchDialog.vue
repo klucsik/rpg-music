@@ -24,7 +24,7 @@
             ref="searchInput"
             v-model="searchQuery"
             type="text"
-            placeholder="Search for music on YouTube..."
+            placeholder="Search YouTube or paste a YouTube link..."
             @keyup.enter="handleSearch"
             class="search-input"
           />
@@ -129,8 +129,8 @@
 
         <!-- Initial State -->
         <div v-if="!searching && !error && !hasSearched" class="initial-state">
-          <p>🔍 Search for music on YouTube</p>
-          <p class="hint">Enter a song name, artist, or any keywords</p>
+          <p>🔍 Search YouTube or paste a link</p>
+          <p class="hint">Enter keywords to search, or paste a YouTube URL to download directly</p>
         </div>
       </div>
 
@@ -181,20 +181,88 @@ const downloadingIds = ref(new Set());
 const selectedFolderIds = ref([]);
 
 /**
- * Handle search
+ * Check if input is a YouTube URL
+ */
+const isYouTubeUrl = (text) => {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
+    /^[a-zA-Z0-9_-]{11}$/, // Direct video ID
+  ];
+  return patterns.some(pattern => pattern.test(text));
+};
+
+/**
+ * Handle search or URL download
  */
 const handleSearch = async () => {
   if (!searchQuery.value.trim()) {
     return;
   }
 
+  const query = searchQuery.value.trim();
+  
+  // Check if it's a URL - if so, try to add it directly as a download
+  if (isYouTubeUrl(query)) {
+    await handleDirectUrl(query);
+  } else {
+    await handleYouTubeSearch(query);
+  }
+};
+
+/**
+ * Handle direct URL download
+ */
+const handleDirectUrl = async (url) => {
   searching.value = true;
   error.value = null;
   results.value = [];
-  lastSearchQuery.value = searchQuery.value;
+  lastSearchQuery.value = url;
 
   try {
-    const response = await api.searchYouTube(searchQuery.value.trim(), 10);
+    // Add download job with optional folder IDs
+    const response = await api.addDownloadJob(
+      url, 
+      selectedFolderIds.value && selectedFolderIds.value.length > 0 
+        ? selectedFolderIds.value 
+        : null
+    );
+    
+    // Show success message
+    successMessage.value = 'Download started! Check the download queue for progress.';
+    emit('download-started', response.job);
+    
+    // Clear the input and close after a short delay
+    setTimeout(() => {
+      successMessage.value = null;
+      close();
+    }, 2000);
+    
+  } catch (err) {
+    console.error('Direct download failed:', err);
+    
+    if (err.message && err.message.includes('already')) {
+      error.value = 'This video is already downloaded or in the queue';
+    } else if (err.message && err.message.includes('Invalid')) {
+      error.value = 'Invalid YouTube URL. Please check the link and try again.';
+    } else {
+      error.value = 'Failed to start download. Please check the URL and try again.';
+    }
+  } finally {
+    searching.value = false;
+  }
+};
+
+/**
+ * Handle YouTube search
+ */
+const handleYouTubeSearch = async (query) => {
+  searching.value = true;
+  error.value = null;
+  results.value = [];
+  lastSearchQuery.value = query;
+
+  try {
+    const response = await api.searchYouTube(query, 10);
     results.value = response.results || [];
     hasSearched.value = true;
     

@@ -48,11 +48,11 @@ router.get('/search', async (req, res) => {
 /**
  * Add a new download job from direct URL
  * POST /api/downloads
- * Body: { youtubeUrl: string }
+ * Body: { youtubeUrl: string, folder_ids?: array }
  */
 router.post('/', async (req, res) => {
   try {
-    const { youtubeUrl } = req.body;
+    const { youtubeUrl, folder_ids } = req.body;
     
     if (!youtubeUrl || typeof youtubeUrl !== 'string') {
       return res.status(400).json({
@@ -66,9 +66,9 @@ router.post('/', async (req, res) => {
       });
     }
     
-    logger.info({ youtubeUrl }, 'Download job requested via URL');
+    logger.info({ youtubeUrl, folder_ids }, 'Download job requested via URL');
     
-    const job = await downloadQueue.addJob(youtubeUrl);
+    const job = await downloadQueue.addJob(youtubeUrl, null, folder_ids);
     
     res.status(201).json({
       message: 'Download job added to queue',
