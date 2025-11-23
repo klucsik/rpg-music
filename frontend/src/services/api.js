@@ -191,6 +191,59 @@ class ApiClient {
     const base = this.baseUrl || '';
     return `${base}/audio/${trackId}`;
   }
+
+  // YouTube Downloads
+  async searchYouTube(query, limit = 10) {
+    const params = new URLSearchParams({ q: query, limit: limit.toString() });
+    return this.request(`/api/downloads/search?${params}`);
+  }
+
+  async addDownloadJob(youtubeUrl) {
+    return this.request('/api/downloads', {
+      method: 'POST',
+      body: JSON.stringify({ youtubeUrl }),
+    });
+  }
+
+  async addDownloadFromSearch(searchResult) {
+    return this.request('/api/downloads/from-search', {
+      method: 'POST',
+      body: JSON.stringify(searchResult),
+    });
+  }
+
+  async getDownloadJobs(limit = 50, offset = 0, status = null) {
+    const params = { limit: limit.toString(), offset: offset.toString() };
+    if (status) params.status = status;
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/api/downloads?${queryString}`);
+  }
+
+  async getDownloadJob(jobId) {
+    return this.request(`/api/downloads/${jobId}`);
+  }
+
+  async getDownloadQueueStatus() {
+    return this.request('/api/downloads/queue/status');
+  }
+
+  async cancelDownloadJob(jobId) {
+    return this.request(`/api/downloads/${jobId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async retryDownloadJob(jobId) {
+    return this.request(`/api/downloads/${jobId}/retry`, {
+      method: 'POST',
+    });
+  }
+
+  async deleteDownloadJob(jobId) {
+    return this.request(`/api/downloads/${jobId}/delete`, {
+      method: 'POST',
+    });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

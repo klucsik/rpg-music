@@ -34,6 +34,14 @@ const config = {
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',
   
+  // YouTube Downloads
+  ytdlpPath: process.env.YTDLP_PATH || '/usr/local/bin/yt-dlp',
+  downloadTimeout: parseInt(process.env.DOWNLOAD_TIMEOUT || '600000', 10), // 10 minutes default
+  downloadRetryAttempts: parseInt(process.env.DOWNLOAD_RETRY_ATTEMPTS || '3', 10),
+  maxQueueSize: parseInt(process.env.MAX_QUEUE_SIZE || '100', 10),
+  youtubeSearchLimit: parseInt(process.env.YOUTUBE_SEARCH_LIMIT || '10', 10),
+  youtubeSearchTimeout: parseInt(process.env.YOUTUBE_SEARCH_TIMEOUT || '30000', 10), // 30 seconds
+  
   // External Links
   addMusicUrl: process.env.ADD_MUSIC_URL || '',
   addMusicText: process.env.ADD_MUSIC_TEXT || 'Click "Continue" to open the music source in a new tab.',

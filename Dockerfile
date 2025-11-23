@@ -20,8 +20,10 @@ FROM node:22-alpine AS production
 
 WORKDIR /app
 
-# Install required system dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++ sqlite
+# Install required system dependencies for better-sqlite3, yt-dlp, and ffmpeg
+RUN apk add --no-cache python3 py3-pip make g++ sqlite ffmpeg
+RUN pip3 install -U --break-system-packages yt-dlp && \
+    ln -sf $(which yt-dlp) /usr/local/bin/yt-dlp
 
 # Copy backend package files
 COPY backend/package*.json ./

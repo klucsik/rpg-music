@@ -16,12 +16,11 @@
           <div class="header-row">
             <h3>Music Library</h3>
             <button
-              v-if="addMusicUrl"
-              @click="handleAddMusicClick"
-              class="add-music-btn"
-              title="Add new music"
+              @click="handleManageLibraryClick"
+              class="manage-library-btn"
+              title="Manage library and download music"
             >
-              ➕ Add
+              ⚙️ Manage Library
             </button>
             <div class="order-controls">
               <select v-model="orderBy" class="order-select" title="Sort by">
@@ -62,6 +61,9 @@
         >
           <div class="track-title" :title="track.title">
             {{ track.title || 'Unknown' }}
+            <span v-if="track.youtube_video_id" class="youtube-badge" title="Downloaded from YouTube">
+              ▶️
+            </span>
           </div>
           <div class="track-meta" :title="track.artist">
             {{ track.artist || 'Unknown Artist' }}
@@ -95,6 +97,14 @@
       @close="handleDialogClose"
       @continue="handleDialogClose"
     />
+
+    <!-- YouTube Search Dialog -->
+    <YouTubeSearchDialog
+      :show="showYouTubeSearchDialog"
+      :downloaded-video-ids="downloadedVideoIds"
+      @close="handleYouTubeSearchClose"
+      @download-started="handleDownloadStarted"
+    />
   </div>
 </template>
 
@@ -102,6 +112,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import SimpleDialog from './SimpleDialog.vue';
+import YouTubeSearchDialog from './YouTubeSearchDialog.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
 import websocket from '../services/websocket';
@@ -113,7 +124,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['track-play']);
+const emit = defineEmits(['track-play', 'open-manage-library']);
 
 // Ordering state
 const orderBy = ref(localStorage.getItem('library-order-by') || 'title');
@@ -148,8 +159,10 @@ watch([orderBy, orderDir], () => {
 
 // Add Music Dialog
 const showAddMusicDialog = ref(false);
+const showYouTubeSearchDialog = ref(false);
 const addMusicUrl = ref('');
 const addMusicText = ref('');
+const downloadedVideoIds = ref(new Set());
 
 // Load system config to get add music URL and text
 const loadSystemInfo = async () => {
@@ -163,14 +176,42 @@ const loadSystemInfo = async () => {
   }
 };
 
+// Load downloaded video IDs
+const loadDownloadedVideoIds = () => {
+  const ids = new Set();
+  tracks.value.forEach(track => {
+    if (track.youtube_video_id) {
+      ids.add(track.youtube_video_id);
+    }
+  });
+  downloadedVideoIds.value = ids;
+};
+
+// Watch tracks for changes to update downloaded video IDs
+watch(tracks, () => {
+  loadDownloadedVideoIds();
+}, { deep: true });
+
+const handleManageLibraryClick = () => {
+  emit('open-manage-library');
+};
+
 const handleAddMusicClick = () => {
-  if (addMusicUrl.value) {
-    showAddMusicDialog.value = true;
-  }
+  // Always open YouTube search dialog
+  showYouTubeSearchDialog.value = true;
 };
 
 const handleDialogClose = () => {
   showAddMusicDialog.value = false;
+};
+
+const handleYouTubeSearchClose = () => {
+  showYouTubeSearchDialog.value = false;
+};
+
+const handleDownloadStarted = (job) => {
+  console.log('Download started:', job);
+  // Could show a notification here
 };
 
 const handleSearch = () => {
@@ -233,6 +274,7 @@ const handleTrackDeleted = (data) => {
 // Load system info on mount
 onMounted(() => {
   loadSystemInfo();
+  loadDownloadedVideoIds();
   websocket.on('track_updated', handleTrackUpdated);
   websocket.on('track_deleted', handleTrackDeleted);
 });
@@ -321,6 +363,32 @@ defineExpose({
   transform: scale(0.98);
 }
 
+.manage-library-btn {
+  padding: 6px 12px;
+  background: #4CAF50;
+  border: 1px solid #4CAF50;
+  border-radius: 4px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.9em;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.manage-library-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
+}
+
+.manage-library-btn:active {
+  transform: scale(0.98);
+}
+
 .order-controls {
   display: flex;
   align-items: center;
@@ -396,6 +464,15 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.youtube-badge {
+  font-size: 0.8em;
+  opacity: 0.7;
+  flex-shrink: 0;
 }
 
 .track-meta {

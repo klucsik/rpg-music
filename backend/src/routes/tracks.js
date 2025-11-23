@@ -1,6 +1,9 @@
 import express from 'express';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 import { trackQueries, trackFolderQueries } from '../db/database.js';
 import { getIO } from '../websocket/socketServer.js';
+import config from '../config/config.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -212,7 +215,7 @@ router.put('/:id', (req, res) => {
  * Delete track
  * DELETE /api/tracks/:id
  */
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const trackId = req.params.id;
     
@@ -225,10 +228,12 @@ router.delete('/:id', (req, res) => {
       });
     }
     
+    const filepath = track.filepath;
+    
     // Remove track from all collections
     trackFolderQueries.removeTrackFromAll(trackId);
     
-    // Delete the track
+    // Delete the track from database
     const result = trackQueries.delete(trackId);
     
     if (result.changes === 0) {
@@ -238,7 +243,22 @@ router.delete('/:id', (req, res) => {
       });
     }
     
-    logger.info({ trackId, filepath: track.filepath }, 'Track deleted from database');
+    logger.info({ trackId, filepath }, 'Track deleted from database');
+    
+    // Try to delete the physical file
+    let fileDeleted = false;
+    try {
+      // If filepath is relative, prepend music directory
+      const absolutePath = filepath.startsWith('/') 
+        ? filepath 
+        : join(config.musicDir, filepath);
+      
+      await unlink(absolutePath);
+      fileDeleted = true;
+      logger.info({ filepath: absolutePath }, 'Physical file deleted successfully');
+    } catch (fileError) {
+      logger.warn({ error: fileError, filepath }, 'Failed to delete physical file (file may not exist or permission denied)');
+    }
     
     // Broadcast track deletion to all clients
     try {
@@ -254,7 +274,10 @@ router.delete('/:id', (req, res) => {
     res.json({
       message: 'Track deleted successfully',
       id: trackId,
-      note: 'The physical file was not deleted. Only the database entry was removed.',
+      fileDeleted,
+      note: fileDeleted 
+        ? 'Both database entry and physical file were deleted.' 
+        : 'Database entry deleted, but physical file could not be deleted.',
     });
   } catch (error) {
     logger.error({ error, trackId: req.params.id }, 'Failed to delete track');

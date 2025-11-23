@@ -13,6 +13,68 @@ const __dirname = dirname(__filename);
 let db = null;
 
 /**
+ * Run database migrations
+ */
+async function runMigrations() {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+  
+  logger.info('Running database migrations...');
+  
+  // Check if youtube_url column exists in tracks table
+  const tableInfo = db.prepare("PRAGMA table_info(tracks)").all();
+  const hasYoutubeUrl = tableInfo.some(col => col.name === 'youtube_url');
+  const hasYoutubeVideoId = tableInfo.some(col => col.name === 'youtube_video_id');
+  
+  if (!hasYoutubeUrl) {
+    logger.info('Adding youtube_url column to tracks table');
+    db.exec('ALTER TABLE tracks ADD COLUMN youtube_url TEXT');
+  }
+  
+  if (!hasYoutubeVideoId) {
+    logger.info('Adding youtube_video_id column to tracks table');
+    db.exec('ALTER TABLE tracks ADD COLUMN youtube_video_id TEXT');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_tracks_youtube_video_id ON tracks(youtube_video_id)');
+  }
+  
+  // Check if download_jobs table exists
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='download_jobs'").all();
+  const hasDownloadJobsTable = tables.length > 0;
+  
+  if (!hasDownloadJobsTable) {
+    logger.info('Creating download_jobs table');
+    db.exec(`
+      CREATE TABLE download_jobs (
+        id TEXT PRIMARY KEY,
+        youtube_url TEXT NOT NULL,
+        youtube_video_id TEXT NOT NULL,
+        youtube_title TEXT,
+        youtube_channel TEXT,
+        youtube_thumbnail TEXT,
+        youtube_duration INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending',
+        track_id TEXT,
+        error_message TEXT,
+        progress_percent INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        started_at INTEGER,
+        completed_at INTEGER,
+        FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE SET NULL
+      )
+    `);
+    
+    db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_status ON download_jobs(status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_video_id ON download_jobs(youtube_video_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_download_jobs_created_at ON download_jobs(created_at)');
+    
+    logger.info('Download jobs table created');
+  }
+  
+  logger.info('Database migrations completed');
+}
+
+/**
  * Initialize the database connection and create tables
  */
 export async function initDatabase() {
@@ -32,11 +94,19 @@ export async function initDatabase() {
     
     logger.info({ path: config.databasePath }, 'Database connection established');
     
-    // Run main schema
-    const schema = readFileSync(`${__dirname}/schema.sql`, 'utf-8');
+    // Run base schema (backwards compatible)
+    const schema = readFileSync(`${__dirname}/schema-base.sql`, 'utf-8');
     db.exec(schema);
     
-    logger.info('Database schema initialized');
+    logger.info('Database base schema initialized');
+    
+    // Run migrations for YouTube support
+    try {
+      await runMigrations();
+    } catch (error) {
+      logger.error({ error }, 'Failed to run migrations');
+      throw error;
+    }
     
     // Run collections schema (new unified system)
     try {
@@ -83,9 +153,11 @@ export const trackQueries = {
   insert: (track) => {
     const stmt = getDb().prepare(`
       INSERT INTO tracks (id, filepath, filename, title, artist, album, duration, 
-                         format, bitrate, sample_rate, file_size, created_at, updated_at)
+                         format, bitrate, sample_rate, file_size, youtube_url, 
+                         youtube_video_id, created_at, updated_at)
       VALUES (@id, @filepath, @filename, @title, @artist, @album, @duration,
-              @format, @bitrate, @sample_rate, @file_size, @created_at, @updated_at)
+              @format, @bitrate, @sample_rate, @file_size, @youtube_url,
+              @youtube_video_id, @created_at, @updated_at)
     `);
     return stmt.run(track);
   },
@@ -187,6 +259,26 @@ export const trackQueries = {
       WHERE id = @id
     `);
     return stmt.run({ id, ...updates, updated_at: Date.now() });
+  },
+
+  /**
+   * Get track by YouTube video ID
+   */
+  getByYoutubeVideoId: (videoId) => {
+    const stmt = getDb().prepare('SELECT * FROM tracks WHERE youtube_video_id = ?');
+    return stmt.get(videoId);
+  },
+
+  /**
+   * Update YouTube URL and video ID for a track
+   */
+  updateYoutubeData: (id, youtubeUrl, youtubeVideoId) => {
+    const stmt = getDb().prepare(`
+      UPDATE tracks 
+      SET youtube_url = ?, youtube_video_id = ?, updated_at = ?
+      WHERE id = ?
+    `);
+    return stmt.run(youtubeUrl, youtubeVideoId, Date.now(), id);
   },
 };
 
@@ -390,6 +482,176 @@ export const collectionQueries = {
     collectionQueriesModule.getCollectionTracks(getDb(), collectionId, limit, offset)
 };
 
+// Download job operations
+export const downloadJobQueries = {
+  /**
+   * Insert a new download job
+   */
+  insert: (job) => {
+    const stmt = getDb().prepare(`
+      INSERT INTO download_jobs (
+        id, youtube_url, youtube_video_id, youtube_title, youtube_channel,
+        youtube_thumbnail, youtube_duration, status, track_id, error_message,
+        progress_percent, created_at, started_at, completed_at
+      ) VALUES (
+        @id, @youtube_url, @youtube_video_id, @youtube_title, @youtube_channel,
+        @youtube_thumbnail, @youtube_duration, @status, @track_id, @error_message,
+        @progress_percent, @created_at, @started_at, @completed_at
+      )
+    `);
+    return stmt.run(job);
+  },
+
+  /**
+   * Get job by ID
+   */
+  getById: (id) => {
+    const stmt = getDb().prepare('SELECT * FROM download_jobs WHERE id = ?');
+    return stmt.get(id);
+  },
+
+  /**
+   * Get job by YouTube video ID
+   */
+  getByVideoId: (videoId) => {
+    const stmt = getDb().prepare('SELECT * FROM download_jobs WHERE youtube_video_id = ?');
+    return stmt.get(videoId);
+  },
+
+  /**
+   * Get all jobs with pagination
+   */
+  getAll: (limit = 100, offset = 0) => {
+    const stmt = getDb().prepare(`
+      SELECT * FROM download_jobs 
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+    return stmt.all(limit, offset);
+  },
+
+  /**
+   * Get jobs by status
+   */
+  getByStatus: (status, limit = 100, offset = 0) => {
+    const stmt = getDb().prepare(`
+      SELECT * FROM download_jobs 
+      WHERE status = ?
+      ORDER BY created_at ASC
+      LIMIT ? OFFSET ?
+    `);
+    return stmt.all(status, limit, offset);
+  },
+
+  /**
+   * Get pending jobs (ordered by creation time)
+   */
+  getPendingJobs: () => {
+    const stmt = getDb().prepare(`
+      SELECT * FROM download_jobs 
+      WHERE status = 'pending'
+      ORDER BY created_at ASC
+    `);
+    return stmt.all();
+  },
+
+  /**
+   * Update job status and progress
+   */
+  updateStatus: (id, status, progressPercent) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET status = ?, progress_percent = ?
+      WHERE id = ?
+    `);
+    return stmt.run(status, progressPercent, id);
+  },
+
+  /**
+   * Update job progress
+   */
+  updateProgress: (id, progressPercent) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET progress_percent = ?
+      WHERE id = ?
+    `);
+    return stmt.run(progressPercent, id);
+  },
+
+  /**
+   * Update job error message
+   */
+  updateError: (id, errorMessage) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET error_message = ?
+      WHERE id = ?
+    `);
+    return stmt.run(errorMessage, id);
+  },
+
+  /**
+   * Update job track ID (when download completes)
+   */
+  updateTrackId: (id, trackId) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET track_id = ?
+      WHERE id = ?
+    `);
+    return stmt.run(trackId, id);
+  },
+
+  /**
+   * Update started_at timestamp
+   */
+  updateStartedAt: (id, timestamp) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET started_at = ?
+      WHERE id = ?
+    `);
+    return stmt.run(timestamp, id);
+  },
+
+  /**
+   * Update completed_at timestamp
+   */
+  updateCompletedAt: (id, timestamp) => {
+    const stmt = getDb().prepare(`
+      UPDATE download_jobs 
+      SET completed_at = ?
+      WHERE id = ?
+    `);
+    return stmt.run(timestamp, id);
+  },
+
+  /**
+   * Delete job
+   */
+  delete: (id) => {
+    const stmt = getDb().prepare('DELETE FROM download_jobs WHERE id = ?');
+    return stmt.run(id);
+  },
+
+  /**
+   * Count jobs by status
+   */
+  countByStatus: (status) => {
+    const stmt = getDb().prepare('SELECT COUNT(*) as count FROM download_jobs WHERE status = ?');
+    return stmt.get(status).count;
+  },
+
+  /**
+   * Get total count
+   */
+  count: () => {
+    const stmt = getDb().prepare('SELECT COUNT(*) as count FROM download_jobs');
+    return stmt.get().count;
+  },
+};
+
 export default {
   initDatabase,
   getDb,
@@ -398,4 +660,5 @@ export default {
   folderQueries,
   trackFolderQueries,
   collectionQueries,
+  downloadJobQueries,
 };

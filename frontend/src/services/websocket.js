@@ -118,6 +118,35 @@ class WebSocketService {
       this.emit('track_deleted', data);
     });
 
+    // Download events
+    this.socket.on('download_job_added', (data) => {
+      console.log('⬇️ Download job added:', data);
+      this.emit('download_job_added', data);
+    });
+
+    this.socket.on('download_job_started', (data) => {
+      console.log('▶️ Download job started:', data);
+      this.emit('download_job_started', data);
+    });
+
+    this.socket.on('download_job_progress', (data) => {
+      this.emit('download_job_progress', data);
+    });
+
+    this.socket.on('download_job_completed', (data) => {
+      console.log('✅ Download job completed:', data);
+      this.emit('download_job_completed', data);
+    });
+
+    this.socket.on('download_job_failed', (data) => {
+      console.log('❌ Download job failed:', data);
+      this.emit('download_job_failed', data);
+    });
+
+    this.socket.on('download_queue_updated', (data) => {
+      this.emit('download_queue_updated', data);
+    });
+
     return this.socket;
   }
 

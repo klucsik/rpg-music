@@ -13,9 +13,11 @@ import scannerRoutes from './routes/scanner.js';
 import playbackRoutes from './routes/playback.js';
 import folderRoutes from './routes/folders.js';
 import collectionsRoutes from './routes/collections.js';
+import downloadsRoutes from './routes/downloads.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
 import FileWatcher from './services/fileWatcher.js';
+import downloadQueue from './services/downloadQueue.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,6 +62,7 @@ app.use('/api/folders', folderRoutes);
 app.use('/audio', audioRoutes);
 app.use('/api/scan', scannerRoutes);
 app.use('/api/playback', playbackRoutes);
+app.use('/api/downloads', downloadsRoutes);
 // Unified collections API (replaces old playlist and folders routes)
 app.use('/api/collections', collectionsRoutes());
 
@@ -156,6 +159,13 @@ async function start() {
     // Attach io to app for use in routes
     app.set('io', io);
     logger.info('WebSocket server ready');
+    
+    // Connect download queue to WebSocket
+    downloadQueue.setIO(io);
+    logger.info('Download queue connected to WebSocket');
+    
+    // Resume download queue (process any pending jobs from previous run)
+    await downloadQueue.resumeQueue();
     
     // Start file watcher
     logger.info('Starting file watcher...');

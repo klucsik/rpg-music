@@ -1,112 +1,126 @@
 <template>
   <div class="manage-library-panel">
-    <OrderedTrackList
-      :tracks="tracks"
-      :current-track="currentTrack"
-      :allow-reorder="false"
-      :allow-remove="false"
-      :allow-drop="false"
-      :show-position="false"
-      :enable-double-click="true"
-      :enable-single-click="false"
-      @track-dblclick="handleTrackDoubleClick"
-    >
-      <template #header>
-        <div class="library-header">
-          <div class="header-row">
-            <h3>Music Library</h3>
-            <button @click="handleClose" class="close-btn">
-              ✕ Close
-            </button>
-            <button
-              v-if="addMusicUrl"
-              @click="handleAddMusicClick"
-              class="add-music-btn"
-              title="Add new music"
-            >
-              ➕ Add
-            </button>
-            <div class="order-controls">
-              <select v-model="orderBy" class="order-select" title="Sort by">
-                <option value="title">Name</option>
-                <option value="artist">Artist</option>
-                <option value="album">Album</option>
-                <option value="created_at">Date Added</option>
-              </select>
-              <button 
-                @click="orderDir = orderDir === 'asc' ? 'desc' : 'asc'" 
-                class="order-direction-btn"
-                :title="orderDir === 'asc' ? 'Ascending' : 'Descending'"
+    <div class="panel-header">
+      <h3>Manage Library</h3>
+      <button @click="handleClose" class="close-btn">
+        ✕ Close
+      </button>
+    </div>
+
+    <div class="panel-content">
+      <!-- Left Panel: Track List -->
+      <div class="left-panel">
+        <OrderedTrackList
+          :tracks="tracks"
+          :current-track="currentTrack"
+          :allow-reorder="false"
+          :allow-remove="false"
+          :allow-drop="false"
+          :show-position="false"
+          :enable-double-click="true"
+          :enable-single-click="false"
+          @track-dblclick="handleTrackDoubleClick"
+        >
+          <template #header>
+            <div class="track-list-header">
+              <div class="header-row">
+                <h4>Library Tracks</h4>
+                <div class="order-controls">
+                  <select v-model="orderBy" class="order-select" title="Sort by">
+                    <option value="title">Name</option>
+                    <option value="artist">Artist</option>
+                    <option value="album">Album</option>
+                    <option value="created_at">Date Added</option>
+                  </select>
+                  <button 
+                    @click="orderDir = orderDir === 'asc' ? 'desc' : 'asc'" 
+                    class="order-direction-btn"
+                    :title="orderDir === 'asc' ? 'Ascending' : 'Descending'"
+                  >
+                    {{ orderDir === 'asc' ? '↑' : '↓' }}
+                  </button>
+                </div>
+                <div class="library-search">
+                  <input
+                    v-model="searchQuery"
+                    type="text"
+                    placeholder="Search tracks..."
+                    @input="handleSearch"
+                  />
+                </div>
+                <div class="library-stats">
+                  {{ trackCount }} tracks
+                  <span v-if="loading">• Loading...</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #track="{ track }">
+            <div class="track-row">
+              <div 
+                class="track-info"
+                draggable="true"
+                @dragstart="handleDragStart(track, $event)"
               >
-                {{ orderDir === 'asc' ? '↑' : '↓' }}
+                <div class="track-title" :title="track.title">
+                  {{ track.title || 'Unknown' }}
+                </div>
+                <div class="track-meta" :title="track.artist">
+                  {{ track.artist || 'Unknown Artist' }}
+                  <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
+                </div>
+              </div>
+              <div class="track-actions">
+                <button @click.stop="editTrack(track)" class="action-icon-btn" title="Edit metadata">
+                  ✏️
+                </button>
+                <button @click.stop="confirmDeleteTrack(track)" class="action-icon-btn delete" title="Delete track">
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <template #empty>
+            <div class="empty-library">
+              <p>No tracks in library</p>
+              <p class="empty-hint">Add music files to the music directory</p>
+            </div>
+          </template>
+
+          <template #footer>
+            <div class="library-footer" v-if="hasMore">
+              <button @click="loadMore" :disabled="loading">
+                Load More
               </button>
             </div>
-            <div class="library-search">
-              <input
-                v-model="searchQuery"
-                type="text"
-                placeholder="Search tracks..."
-                @input="handleSearch"
-              />
-            </div>
-            <div class="library-stats">
-              {{ trackCount }} tracks
-              <span v-if="loading">• Loading...</span>
-            </div>
-          </div>
-        </div>
-      </template>
+          </template>
+        </OrderedTrackList>
+      </div>
 
-      <template #track="{ track }">
-        <div class="track-row">
-          <div 
-            class="track-info"
-            draggable="true"
-            @dragstart="handleDragStart(track, $event)"
+      <!-- Right Panel: Download Queue & Add Music -->
+      <div class="right-panel">
+        <div class="add-music-section">
+          <button
+            @click="handleAddMusicClick"
+            class="add-music-btn"
+            title="Search and download music from YouTube"
           >
-            <div class="track-title" :title="track.title">
-              {{ track.title || 'Unknown' }}
-            </div>
-            <div class="track-meta" :title="track.artist">
-              {{ track.artist || 'Unknown Artist' }}
-              <span v-if="track.duration"> • {{ formatDuration(track.duration) }}</span>
-            </div>
-          </div>
-          <div class="track-actions">
-            <button @click.stop="editTrack(track)" class="action-icon-btn" title="Edit metadata">
-              ✏️
-            </button>
-            <button @click.stop="confirmDeleteTrack(track)" class="action-icon-btn delete" title="Delete track">
-              🗑️
-            </button>
-          </div>
-        </div>
-      </template>
-
-      <template #empty>
-        <div class="empty-library">
-          <p>No tracks in library</p>
-          <p class="empty-hint">Add music files to the music directory</p>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="library-footer" v-if="hasMore">
-          <button @click="loadMore" :disabled="loading">
-            Load More
+            ➕ Add Music
           </button>
         </div>
-      </template>
-    </OrderedTrackList>
+        
+        <DownloadQueuePanel />
+      </div>
+    </div>
 
-    <!-- Add Music Dialog -->
-    <SimpleDialog
-      :show="showAddMusicDialog"
-      title="Add Music"
-      :message="addMusicText"
-      :continue-url="addMusicUrl"
-      @close="handleDialogClose"
-      @continue="handleDialogClose"
+    <!-- YouTube Search Dialog -->
+    <YouTubeSearchDialog
+      :show="showYouTubeSearchDialog"
+      :downloaded-video-ids="downloadedVideoIds"
+      @close="handleYouTubeSearchClose"
+      @download-started="handleDownloadStarted"
     />
 
     <!-- Edit Track Dialog -->
@@ -167,6 +181,14 @@
             <span class="label">File Size:</span>
             <span class="value">{{ formatFileSize(editingTrackData.file_size) }}</span>
           </div>
+          <div class="info-row" v-if="editingTrackData.youtube_url">
+            <span class="label">YouTube:</span>
+            <span class="value">
+              <a :href="editingTrackData.youtube_url" target="_blank" rel="noopener noreferrer" class="youtube-link">
+                {{ editingTrackData.youtube_url }}
+              </a>
+            </span>
+          </div>
         </div>
         
         <div class="dialog-actions">
@@ -201,11 +223,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
-import SimpleDialog from './SimpleDialog.vue';
+import YouTubeSearchDialog from './YouTubeSearchDialog.vue';
+import DownloadQueuePanel from './DownloadQueuePanel.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
+import websocket from '../services/websocket';
 
 const props = defineProps({
   currentTrack: {
@@ -223,6 +247,10 @@ const orderDir = ref(localStorage.getItem('library-order-dir') || 'asc');
 // Search functionality
 const searchQuery = ref('');
 const searchTimeout = ref(null);
+
+// YouTube Search Dialog
+const showYouTubeSearchDialog = ref(false);
+const downloadedVideoIds = ref(new Set());
 
 // Use the collection composable for the library
 const {
@@ -252,6 +280,43 @@ const showAddMusicDialog = ref(false);
 const addMusicUrl = ref('');
 const addMusicText = ref('');
 
+// Load downloaded video IDs
+const loadDownloadedVideoIds = () => {
+  const ids = new Set();
+  tracks.value.forEach(track => {
+    if (track.youtube_video_id) {
+      ids.add(track.youtube_video_id);
+    }
+  });
+  downloadedVideoIds.value = ids;
+};
+
+// Watch tracks for changes to update downloaded video IDs
+watch(tracks, () => {
+  loadDownloadedVideoIds();
+}, { deep: true });
+
+const handleAddMusicClick = () => {
+  // Open YouTube search dialog
+  showYouTubeSearchDialog.value = true;
+};
+
+const handleYouTubeSearchClose = () => {
+  showYouTubeSearchDialog.value = false;
+};
+
+const handleDownloadStarted = (job) => {
+  console.log('Download started:', job);
+  // Could show a notification here
+};
+
+const handleSearch = () => {
+  clearTimeout(searchTimeout.value);
+  searchTimeout.value = setTimeout(() => {
+    loadCollection();
+  }, 300);
+};
+
 // Edit Track Dialog
 const showEditDialog = ref(false);
 const editingTrack = ref(null);
@@ -274,35 +339,6 @@ const titleInput = ref(null);
 const showDeleteDialog = ref(false);
 const trackToDelete = ref(null);
 const deleting = ref(false);
-
-// Load system config to get add music URL and text
-const loadSystemInfo = async () => {
-  try {
-    const response = await api.getConfig();
-    addMusicUrl.value = response.addMusicUrl || '';
-    addMusicText.value = response.addMusicText || 'Click "Continue" to open the music source in a new tab.';
-    console.log('Add Music config loaded:', { url: addMusicUrl.value, text: addMusicText.value });
-  } catch (err) {
-    console.error('Failed to load system config:', err);
-  }
-};
-
-const handleAddMusicClick = () => {
-  if (addMusicUrl.value) {
-    showAddMusicDialog.value = true;
-  }
-};
-
-const handleDialogClose = () => {
-  showAddMusicDialog.value = false;
-};
-
-const handleSearch = () => {
-  clearTimeout(searchTimeout.value);
-  searchTimeout.value = setTimeout(() => {
-    loadCollection();
-  }, 300);
-};
 
 // Pagination
 const hasMore = computed(() => false); // TODO: Implement pagination
@@ -347,7 +383,8 @@ const editTrack = async (track) => {
       format: fullTrack.format,
       bitrate: fullTrack.bitrate,
       sample_rate: fullTrack.sample_rate,
-      file_size: fullTrack.file_size
+      file_size: fullTrack.file_size,
+      youtube_url: fullTrack.youtube_url || ''
     };
     
     showEditDialog.value = true;
@@ -405,7 +442,8 @@ const closeEditDialog = () => {
     format: '',
     bitrate: null,
     sample_rate: null,
-    file_size: null
+    file_size: null,
+    youtube_url: ''
   };
 };
 
@@ -468,9 +506,56 @@ const handleClose = () => {
   emit('close');
 };
 
+/**
+ * Handle download completed - refresh library
+ */
+const handleDownloadCompleted = (data) => {
+  console.log('Download completed, refreshing library:', data);
+  refresh();
+  emit('refresh');
+};
+
+/**
+ * Handle track added - refresh library
+ */
+const handleTrackAdded = (data) => {
+  console.log('Track added, refreshing library:', data);
+  refresh();
+  emit('refresh');
+};
+
+/**
+ * Handle track updated - refresh library
+ */
+const handleTrackUpdated = (data) => {
+  console.log('Track updated, refreshing library:', data);
+  refresh();
+  emit('refresh');
+};
+
+/**
+ * Handle track deleted - refresh library
+ */
+const handleTrackDeleted = (data) => {
+  console.log('Track deleted, refreshing library:', data);
+  refresh();
+  emit('refresh');
+};
+
 // Load system info on mount
 onMounted(() => {
-  loadSystemInfo();
+  loadDownloadedVideoIds();
+  websocket.on('download_completed', handleDownloadCompleted);
+  websocket.on('track_added', handleTrackAdded);
+  websocket.on('track_updated', handleTrackUpdated);
+  websocket.on('track_deleted', handleTrackDeleted);
+});
+
+onUnmounted(() => {
+  websocket.off('download_completed', handleDownloadCompleted);
+  websocket.off('track_added', handleTrackAdded);
+  websocket.off('track_updated', handleTrackUpdated);
+  websocket.off('track_deleted', handleTrackDeleted);
 });
 
 // Expose refresh method
@@ -489,22 +574,18 @@ defineExpose({
   overflow: hidden;
 }
 
-.library-header {
+.panel-header {
   padding: 12px;
   border-bottom: 1px solid #333;
   background: #222;
-}
-
-.header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
 }
 
-.library-header h3 {
+.panel-header h3 {
   margin: 0;
-  font-size: 1em;
-  white-space: nowrap;
+  font-size: 1.1em;
 }
 
 .close-btn {
@@ -524,6 +605,82 @@ defineExpose({
   border-color: #666;
 }
 
+.panel-content {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  background: #333;
+  overflow: hidden;
+}
+
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+
+.right-panel {
+  width: 350px;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+
+.add-music-section {
+  padding: 12px;
+  border-bottom: 1px solid #333;
+  background: #222;
+}
+
+.add-music-btn {
+  width: 100%;
+  padding: 10px 16px;
+  background: #4CAF50;
+  border: 1px solid #4CAF50;
+  border-radius: 6px;
+  color: white;
+  text-decoration: none;
+  font-size: 0.95em;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.add-music-btn:hover {
+  background: #45a049;
+  border-color: #45a049;
+}
+
+.add-music-btn:active {
+  transform: scale(0.98);
+}
+
+.track-list-header {
+  padding: 12px;
+  border-bottom: 1px solid #333;
+  background: #222;
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-list-header h4 {
+  margin: 0;
+  font-size: 1em;
+  white-space: nowrap;
+}
+
 .library-search {
   flex: 1;
 }
@@ -541,32 +698,6 @@ defineExpose({
 .library-search input:focus {
   outline: none;
   border-color: #42b983;
-}
-
-.add-music-btn {
-  padding: 6px 12px;
-  background: #4CAF50;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
-  color: white;
-  text-decoration: none;
-  font-size: 0.9em;
-  white-space: nowrap;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.add-music-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
-}
-
-.add-music-btn:active {
-  transform: scale(0.98);
 }
 
 .order-controls {
@@ -880,5 +1011,15 @@ defineExpose({
 .delete-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.youtube-link {
+  color: #4CAF50;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.youtube-link:hover {
+  text-decoration: underline;
 }
 </style>

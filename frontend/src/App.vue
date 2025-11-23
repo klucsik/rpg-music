@@ -3,14 +3,6 @@
     <header class="app-header">
       <h1>🎵 MuzsikApp</h1>
       <div class="header-actions">
-        <button
-          @click="toggleManageLibrary"
-          class="manage-btn"
-          :class="{ active: showManageLibrary }"
-          :title="showManageLibrary ? 'Close Manage Library' : 'Manage Library'"
-        >
-          {{ showManageLibrary ? '✕ Close' : '⚙️ Manage Library' }}
-        </button>
         <div class="stats">
           <span class="stat">{{ stats.tracks }} tracks</span>
           <span class="stat">{{ stats.clients }} clients</span>
@@ -50,6 +42,7 @@
             ref="libraryRef"
             :current-track="currentTrack"
             @track-play="onAddTrackAndPlay"
+            @open-manage-library="openManageLibrary"
           />
         </div>
 
@@ -206,6 +199,13 @@ export default {
     };
 
     /**
+     * Open manage library view
+     */
+    const openManageLibrary = () => {
+      showManageLibrary.value = true;
+    };
+
+    /**
      * Handle refresh after manage library changes
      */
     const handleRefresh = async () => {
@@ -260,6 +260,7 @@ export default {
       playPreviousTrack,
       toggleManageLibrary,
       closeManageLibrary,
+      openManageLibrary,
       handleRefresh,
     };
   },

@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="dialog">
-      <div v-if="show" class="dialog-overlay" @click="handleOverlayClick">
+      <div v-if="show" class="dialog-overlay">
         <div class="dialog-container" @click.stop>
           <div class="dialog-header">
             <h3>{{ title }}</h3>
@@ -63,10 +63,6 @@ const handleClose = () => {
 
 const handleContinue = () => {
   emit('continue');
-};
-
-const handleOverlayClick = () => {
-  handleClose();
 };
 </script>
 
