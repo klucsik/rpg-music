@@ -6,6 +6,7 @@ import config from '../config/config.js';
 import logger from '../utils/logger.js';
 import { downloadJobQueries, trackQueries, collectionQueries } from '../db/database.js';
 import { downloadAudio, fetchVideoMetadata, extractVideoId } from './ytdlpDownloader.js';
+import { findDuplicateByMetadata, mergeDuplicateTracks } from './deduplication.js';
 
 /**
  * Download Queue Manager
@@ -197,36 +198,115 @@ class DownloadQueue {
           trackQueries.insert(track);
           logger.info({ trackId, title: track.title }, 'Track added to library');
           
-          // Add track to folders if specified
-          if (job.folder_id) {
-            try {
-              const folderIds = JSON.parse(job.folder_id);
-              if (Array.isArray(folderIds) && folderIds.length > 0) {
-                for (const folderId of folderIds) {
-                  try {
-                    // Add track to folder (position will be automatically set to end)
-                    collectionQueries.addTrack(folderId, trackId);
-                    logger.info({ trackId, folderId }, 'Track added to folder');
-                  } catch (folderError) {
-                    logger.error({ error: folderError, trackId, folderId }, 'Failed to add track to folder');
-                    // Continue with other folders even if one fails
-                  }
+          // Check for duplicates
+          let finalTrackId = trackId;
+          let finalTrack = track;
+          
+          try {
+            logger.info({ 
+              title: track.title, 
+              artist: track.artist, 
+              duration: track.duration 
+            }, 'Checking for duplicate tracks by metadata');
+            
+            const duplicateOf = await findDuplicateByMetadata({
+              title: track.title,
+              artist: track.artist,
+              duration: track.duration,
+            }, relativePath);
+            
+            if (duplicateOf) {
+              logger.info({ 
+                newTrack: trackId, 
+                existingTrack: duplicateOf.id,
+                newFile: relativePath,
+                existingFile: duplicateOf.filepath
+              }, 'Duplicate detected, merging tracks');
+              
+              // Parse folder IDs for merging
+              let folderIds = null;
+              if (job.folder_id) {
+                try {
+                  folderIds = JSON.parse(job.folder_id);
+                } catch (e) {
+                  logger.warn({ folder_id: job.folder_id }, 'Failed to parse folder_id');
                 }
               }
-            } catch (parseError) {
-              logger.error({ error: parseError, trackId, folder_id: job.folder_id }, 'Failed to parse folder_id JSON');
+              
+              // Merge the duplicate into the existing track
+              const youtubeMetadata = {
+                url: job.youtube_url,
+                video_id: job.youtube_video_id,
+                thumbnail: job.youtube_thumbnail,
+              };
+              
+              finalTrack = await mergeDuplicateTracks(
+                trackId, 
+                duplicateOf.id, 
+                youtubeMetadata,
+                folderIds
+              );
+              
+              finalTrackId = duplicateOf.id;
+              
+              logger.info({ 
+                keptTrack: finalTrackId,
+                deletedTrack: trackId 
+              }, 'Duplicate merged successfully');
+            } else {
+              // No duplicate found, add track to folders normally
+              if (job.folder_id) {
+                try {
+                  const folderIds = JSON.parse(job.folder_id);
+                  if (Array.isArray(folderIds) && folderIds.length > 0) {
+                    for (const folderId of folderIds) {
+                      try {
+                        // Add track to folder (position will be automatically set to end)
+                        collectionQueries.addTrack(folderId, trackId);
+                        logger.info({ trackId, folderId }, 'Track added to folder');
+                      } catch (folderError) {
+                        logger.error({ error: folderError, trackId, folderId }, 'Failed to add track to folder');
+                        // Continue with other folders even if one fails
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  logger.error({ error: parseError, trackId, folder_id: job.folder_id }, 'Failed to parse folder_id JSON');
+                }
+              }
+            }
+          } catch (dedupeError) {
+            logger.error({ error: dedupeError }, 'Deduplication check failed, continuing with original track');
+            // If deduplication fails, continue with the original track
+            // Add track to folders normally
+            if (job.folder_id) {
+              try {
+                const folderIds = JSON.parse(job.folder_id);
+                if (Array.isArray(folderIds) && folderIds.length > 0) {
+                  for (const folderId of folderIds) {
+                    try {
+                      collectionQueries.addTrack(folderId, trackId);
+                      logger.info({ trackId, folderId }, 'Track added to folder');
+                    } catch (folderError) {
+                      logger.error({ error: folderError, trackId, folderId }, 'Failed to add track to folder');
+                    }
+                  }
+                }
+              } catch (parseError) {
+                logger.error({ error: parseError, trackId, folder_id: job.folder_id }, 'Failed to parse folder_id JSON');
+              }
             }
           }
           
           // Update job status
           downloadJobQueries.updateStatus(job.id, 'completed', 100);
-          downloadJobQueries.updateTrackId(job.id, trackId);
+          downloadJobQueries.updateTrackId(job.id, finalTrackId);
           downloadJobQueries.updateCompletedAt(job.id, Date.now());
           
           const completedJob = downloadJobQueries.getById(job.id);
-          this.broadcast('download_job_completed', { job: completedJob, track });
+          this.broadcast('download_job_completed', { job: completedJob, track: finalTrack });
           this.broadcast('download_queue_updated', this.getQueueStatus());
-          this.broadcast('track_updated', track);
+          this.broadcast('track_updated', finalTrack);
           
         } catch (error) {
           logger.error({ error, jobId: job.id }, 'Download job failed');
