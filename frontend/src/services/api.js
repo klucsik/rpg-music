@@ -298,6 +298,18 @@ class ApiClient {
       method: 'POST',
     });
   }
+
+  async clearCompletedJobs() {
+    return this.request('/api/downloads/clear/completed', {
+      method: 'POST',
+    });
+  }
+
+  async clearAllJobs() {
+    return this.request('/api/downloads/clear/all', {
+      method: 'POST',
+    });
+  }
 }
 
 export const api = new ApiClient(API_BASE_URL);

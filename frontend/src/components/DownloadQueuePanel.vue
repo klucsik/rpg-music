@@ -117,6 +117,39 @@
       <button @click="refresh" class="refresh-btn" :disabled="loading">
         ↻ Refresh
       </button>
+      <button 
+        @click="clearCompleted" 
+        class="clear-completed-btn"
+        :disabled="loading || queueStatus.completed === 0"
+        title="Remove all completed downloads from the list"
+      >
+        🧹 Clear Completed
+      </button>
+      <button 
+        @click="showClearAllConfirm = true" 
+        class="clear-all-btn"
+        :disabled="loading || jobs.length === 0"
+        title="Clear all downloads from the queue"
+      >
+        🗑️ Clear All
+      </button>
+    </div>
+
+    <!-- Clear All Confirmation Dialog -->
+    <div v-if="showClearAllConfirm" class="dialog-overlay" @click.self="showClearAllConfirm = false">
+      <div class="dialog">
+        <h3>Clear All Downloads?</h3>
+        <p>Are you sure you want to clear all downloads from the queue?</p>
+        <p class="warning">⚠️ This will remove all pending, downloading, completed, and failed jobs.</p>
+        <p class="warning">Any currently downloading files will be cancelled.</p>
+        
+        <div class="dialog-actions">
+          <button @click="showClearAllConfirm = false" class="cancel-btn">Cancel</button>
+          <button @click="clearAll" :disabled="clearing" class="delete-btn">
+            {{ clearing ? 'Clearing...' : 'Clear All' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -131,6 +164,8 @@ const emit = defineEmits(['download-completed']);
 // State
 const jobs = ref([]);
 const loading = ref(false);
+const clearing = ref(false);
+const showClearAllConfirm = ref(false);
 const queueStatus = ref({
   total: 0,
   pending: 0,
@@ -198,6 +233,42 @@ const deleteJob = async (jobId) => {
   } catch (error) {
     console.error('Failed to delete job:', error);
     alert('Failed to delete job: ' + error.message);
+  }
+};
+
+/**
+ * Clear all completed jobs
+ */
+const clearCompleted = async () => {
+  try {
+    clearing.value = true;
+    const response = await api.clearCompletedJobs();
+    console.log(`Cleared ${response.deletedCount} completed jobs`);
+    // Queue will be updated via WebSocket event
+  } catch (error) {
+    console.error('Failed to clear completed jobs:', error);
+    alert('Failed to clear completed jobs: ' + error.message);
+  } finally {
+    clearing.value = false;
+  }
+};
+
+/**
+ * Clear all jobs from queue
+ */
+const clearAll = async () => {
+  try {
+    clearing.value = true;
+    const response = await api.clearAllJobs();
+    console.log(`Cleared ${response.deletedCount} jobs from queue`);
+    showClearAllConfirm.value = false;
+    // Queue will be updated via WebSocket event
+  } catch (error) {
+    console.error('Failed to clear all jobs:', error);
+    alert('Failed to clear all jobs: ' + error.message);
+    showClearAllConfirm.value = false;
+  } finally {
+    clearing.value = false;
   }
 };
 
@@ -558,12 +629,14 @@ defineExpose({
   padding: 10px 12px;
   border-top: 1px solid #333;
   display: flex;
+  gap: 8px;
   justify-content: center;
 }
 
-.refresh-btn {
+.refresh-btn,
+.clear-completed-btn,
+.clear-all-btn {
   padding: 8px 16px;
-  background: #444;
   border: none;
   border-radius: 4px;
   color: white;
@@ -572,11 +645,33 @@ defineExpose({
   transition: all 0.2s;
 }
 
+.refresh-btn {
+  background: #444;
+}
+
 .refresh-btn:hover:not(:disabled) {
   background: #555;
 }
 
-.refresh-btn:disabled {
+.clear-completed-btn {
+  background: #2196F3;
+}
+
+.clear-completed-btn:hover:not(:disabled) {
+  background: #1976D2;
+}
+
+.clear-all-btn {
+  background: #f44336;
+}
+
+.clear-all-btn:hover:not(:disabled) {
+  background: #d32f2f;
+}
+
+.refresh-btn:disabled,
+.clear-completed-btn:disabled,
+.clear-all-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -597,5 +692,85 @@ defineExpose({
 
 .queue-body::-webkit-scrollbar-thumb:hover {
   background: #555;
+}
+
+/* Dialog styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: #2a2a2a;
+  border-radius: 12px;
+  padding: 25px;
+  min-width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.dialog h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.2em;
+  color: #e0e0e0;
+}
+
+.dialog p {
+  margin: 10px 0;
+  color: #e0e0e0;
+  line-height: 1.5;
+}
+
+.dialog .warning {
+  color: #ff9800;
+  font-size: 0.95em;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.dialog-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s;
+  font-weight: 500;
+}
+
+.cancel-btn {
+  background: #444;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background: #555;
+}
+
+.delete-btn {
+  background: #f44336;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #d32f2f;
+}
+
+.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

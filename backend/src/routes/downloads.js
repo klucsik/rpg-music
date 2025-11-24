@@ -448,4 +448,48 @@ router.post('/:jobId/delete', (req, res) => {
   }
 });
 
+/**
+ * Clear all completed jobs
+ * POST /api/downloads/clear/completed
+ */
+router.post('/clear/completed', (req, res) => {
+  try {
+    const deletedCount = downloadQueue.clearCompleted();
+    
+    res.json({
+      message: 'Completed jobs cleared successfully',
+      deletedCount,
+    });
+    
+  } catch (error) {
+    logger.error({ error }, 'Failed to clear completed jobs');
+    res.status(500).json({
+      error: 'Failed to clear completed jobs',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Clear all jobs from queue
+ * POST /api/downloads/clear/all
+ */
+router.post('/clear/all', (req, res) => {
+  try {
+    const deletedCount = downloadQueue.clearAll();
+    
+    res.json({
+      message: 'All jobs cleared successfully',
+      deletedCount,
+    });
+    
+  } catch (error) {
+    logger.error({ error }, 'Failed to clear all jobs');
+    res.status(500).json({
+      error: 'Failed to clear all jobs',
+      message: error.message,
+    });
+  }
+});
+
 export default router;

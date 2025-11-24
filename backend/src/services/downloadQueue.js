@@ -478,6 +478,59 @@ class DownloadQueue {
   }
 
   /**
+   * Clear all completed jobs
+   */
+  clearCompleted() {
+    const completedJobs = downloadJobQueries.getByStatus('completed');
+    let deletedCount = 0;
+    
+    for (const job of completedJobs) {
+      downloadJobQueries.delete(job.id);
+      deletedCount++;
+    }
+    
+    logger.info({ deletedCount }, 'Cleared completed download jobs');
+    this.broadcast('download_queue_updated', this.getQueueStatus());
+    
+    return deletedCount;
+  }
+
+  /**
+   * Clear all jobs (with confirmation)
+   */
+  clearAll() {
+    // Cancel/stop any currently downloading job
+    if (this.currentJob) {
+      logger.info({ jobId: this.currentJob.id }, 'Stopping current download job before clearing all');
+      try {
+        // Mark it as cancelled instead of using cancelJob
+        downloadJobQueries.updateStatus(this.currentJob.id, 'failed', 0);
+        downloadJobQueries.updateError(this.currentJob.id, 'Cancelled by user');
+        this.currentJob = null;
+      } catch (error) {
+        logger.error({ error, jobId: this.currentJob.id }, 'Failed to stop current job');
+      }
+    }
+    
+    const allJobs = downloadJobQueries.getAll();
+    let deletedCount = 0;
+    
+    for (const job of allJobs) {
+      try {
+        downloadJobQueries.delete(job.id);
+        deletedCount++;
+      } catch (error) {
+        logger.error({ error, jobId: job.id }, 'Failed to delete job during clear all');
+      }
+    }
+    
+    logger.info({ deletedCount }, 'Cleared all download jobs');
+    this.broadcast('download_queue_updated', this.getQueueStatus());
+    
+    return deletedCount;
+  }
+
+  /**
    * Resume processing on server restart
    */
   async resumeQueue() {
