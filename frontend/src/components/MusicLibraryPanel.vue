@@ -14,13 +14,13 @@
       <template #header>
         <div class="library-header">
           <div class="header-row">
-            <h3>Music Library</h3>
+            <h3>Library</h3>
             <button
               @click="handleManageLibraryClick"
               class="manage-library-btn"
               title="Manage library and download music"
             >
-              ⚙️ Manage Library
+              ⚙️ Manage
             </button>
             <div class="order-controls">
               <select v-model="orderBy" class="order-select" title="Sort by">
