@@ -138,11 +138,101 @@
         <button @click="close" class="cancel-btn">Close</button>
       </div>
     </div>
+
+    <!-- Playlist Confirmation Dialog -->
+    <div v-if="showPlaylistConfirm" class="dialog-overlay">
+      <div class="dialog-box playlist-confirm-dialog">
+        <div class="dialog-header">
+          <h3>Confirm Playlist Download</h3>
+          <button class="close-btn" @click="cancelPlaylistConfirm" title="Close">&times;</button>
+        </div>
+        
+        <div class="dialog-body">
+          <div class="playlist-info">
+            <h4>{{ playlistPreview.playlist_title || 'Unknown Playlist' }}</h4>
+            <p class="playlist-meta">
+              {{ playlistPreview.video_count }} video{{ playlistPreview.video_count !== 1 ? 's' : '' }}
+              <span v-if="playlistPreview.channel"> • {{ playlistPreview.channel }}</span>
+            </p>
+          </div>
+
+          <div class="playlist-tracks-preview">
+            <div class="tracks-header">
+              <h5>Tracks to download:</h5>
+              <div class="selection-controls">
+                <button @click="selectAll" class="select-btn" v-if="!allSelected">Select All</button>
+                <button @click="deselectAll" class="select-btn" v-else>Deselect All</button>
+              </div>
+            </div>
+            <div class="tracks-list">
+              <div 
+                v-for="(video, index) in playlistPreview.videos" 
+                :key="video.video_id"
+                class="track-preview-item"
+                :class="{
+                  'already-downloaded': isAlreadyDownloaded(video.video_id),
+                  'selected': isSelected(video.video_id),
+                  'deselected': !isSelected(video.video_id)
+                }"
+                @click="toggleSelection(video.video_id)"
+              >
+                <div class="checkbox-container">
+                  <input 
+                    type="checkbox"
+                    :checked="isSelected(video.video_id)"
+                    @click.stop
+                    @change="toggleSelection(video.video_id)"
+                  />
+                </div>
+                <span class="track-number">{{ index + 1 }}.</span>
+                <div class="track-thumbnail-small">
+                  <img 
+                    v-if="video.thumbnail" 
+                    :src="video.thumbnail" 
+                    :alt="video.title"
+                    @error="handleImageError"
+                  />
+                  <div v-else class="thumbnail-placeholder-small">🎵</div>
+                </div>
+                <div class="track-info-small">
+                  <div class="track-title-small" :title="video.title">
+                    {{ video.title }}
+                    <span v-if="isAlreadyDownloaded(video.video_id)" class="downloaded-indicator">✓ Downloaded</span>
+                  </div>
+                  <div class="track-meta-small">
+                    <span v-if="video.channel">{{ video.channel }}</span>
+                    <span v-if="video.duration"> • {{ formatDuration(video.duration) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="confirmation-summary">
+            <p>
+              <strong>{{ selectedNewTracksCount }}</strong> new track{{ selectedNewTracksCount !== 1 ? 's' : '' }} will be added to the download queue
+              <span v-if="selectedTracksCount !== selectedNewTracksCount"> ({{ selectedTracksCount - selectedNewTracksCount }} already downloaded)</span>
+            </p>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button @click="cancelPlaylistConfirm" class="cancel-btn">Cancel</button>
+          <button 
+            @click="confirmPlaylistDownload" 
+            class="confirm-btn"
+            :disabled="selectedNewTracksCount === 0"
+          >
+            Add {{ selectedNewTracksCount }} Track{{ selectedNewTracksCount !== 1 ? 's' : '' }} to Queue
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import api from '../services/api';
 import websocket from '../services/websocket';
 import FolderSelector from './FolderSelector.vue';
@@ -179,6 +269,17 @@ const hasSearched = ref(false);
 const searchInput = ref(null);
 const downloadingIds = ref(new Set());
 const selectedFolderIds = ref([]);
+
+// Playlist confirmation state
+const showPlaylistConfirm = ref(false);
+const playlistPreview = ref({
+  playlist_title: '',
+  channel: '',
+  video_count: 0,
+  videos: []
+});
+const pendingPlaylistUrl = ref('');
+const selectedVideoIds = ref(new Set());
 
 /**
  * Check if input is a YouTube URL
@@ -234,7 +335,8 @@ const handleDirectUrl = async (url) => {
   lastSearchQuery.value = url;
 
   try {
-    // Add download job with optional folder IDs
+    // For single video URLs, we can add directly without confirmation
+    // (user explicitly pasted a single video, not a playlist)
     const response = await api.addDownloadJob(
       url, 
       selectedFolderIds.value && selectedFolderIds.value.length > 0 
@@ -277,18 +379,98 @@ const handlePlaylistUrl = async (url) => {
   lastSearchQuery.value = url;
 
   try {
-    // Add all videos from playlist to download queue
-    const response = await api.addPlaylistDownload(
-      url, 
-      selectedFolderIds.value && selectedFolderIds.value.length > 0 
-        ? selectedFolderIds.value 
-        : null
+    // Fetch playlist info first (without adding to queue)
+    const playlistData = await api.getPlaylistInfo(url);
+    
+    if (!playlistData.videos || playlistData.videos.length === 0) {
+      error.value = 'This playlist is empty or private.';
+      return;
+    }
+    
+    // Store playlist data and URL for confirmation
+    playlistPreview.value = playlistData;
+    pendingPlaylistUrl.value = url;
+    
+    // Pre-select all videos that aren't already downloaded
+    selectedVideoIds.value = new Set(
+      playlistData.videos
+        .filter(v => !isAlreadyDownloaded(v.video_id))
+        .map(v => v.video_id)
     );
+    
+    // Show confirmation dialog
+    showPlaylistConfirm.value = true;
+    
+  } catch (err) {
+    console.error('Playlist fetch failed:', err);
+    
+    if (err.message && err.message.includes('Invalid')) {
+      error.value = 'Invalid playlist URL. Please check the link and try again.';
+    } else if (err.message && err.message.includes('empty')) {
+      error.value = 'This playlist is empty or private.';
+    } else {
+      error.value = 'Failed to fetch playlist. Please check the URL and try again.';
+    }
+  } finally {
+    searching.value = false;
+  }
+};
+
+/**
+ * Confirm and execute playlist download
+ */
+const confirmPlaylistDownload = async () => {
+  if (!pendingPlaylistUrl.value || selectedVideoIds.value.size === 0) return;
+  
+  searching.value = true;
+  showPlaylistConfirm.value = false;
+  
+  try {
+    // Filter videos to only include selected ones
+    const selectedVideos = playlistPreview.value.videos.filter(v => 
+      selectedVideoIds.value.has(v.video_id) && !isAlreadyDownloaded(v.video_id)
+    );
+    
+    // Add selected videos to download queue individually
+    const jobs = [];
+    let errorCount = 0;
+    
+    for (const video of selectedVideos) {
+      try {
+        const metadata = {
+          video_id: video.video_id,
+          title: video.title,
+          channel: video.channel,
+          duration: video.duration,
+          thumbnail: video.thumbnail,
+          url: video.url,
+        };
+        
+        const response = await api.addDownloadFromSearch({
+          ...metadata,
+          folder_ids: selectedFolderIds.value && selectedFolderIds.value.length > 0 
+            ? selectedFolderIds.value 
+            : undefined
+        });
+        
+        jobs.push(response.job);
+        emit('download-started', response.job);
+      } catch (err) {
+        console.error('Failed to add video:', video.title, err);
+        errorCount++;
+      }
+    }
+    
+    // Create response object for success message
+    const response = {
+      playlist_title: playlistPreview.value.playlist_title,
+      added: jobs.length,
+      skipped: errorCount
+    };
     
     // Show success message with details
     const addedCount = response.added || 0;
     const skippedCount = response.skipped || 0;
-    const totalCount = response.total_videos || 0;
     
     let message = `Playlist "${response.playlist_title || 'Unknown'}" processed:\n`;
     message += `${addedCount} video${addedCount !== 1 ? 's' : ''} added to download queue`;
@@ -298,11 +480,6 @@ const handlePlaylistUrl = async (url) => {
     }
     
     successMessage.value = message;
-    
-    // Emit event for each job added
-    if (response.jobs && response.jobs.length > 0) {
-      response.jobs.forEach(job => emit('download-started', job));
-    }
     
     // Clear the input and close after a longer delay for playlists
     setTimeout(() => {
@@ -322,8 +499,96 @@ const handlePlaylistUrl = async (url) => {
     }
   } finally {
     searching.value = false;
+    pendingPlaylistUrl.value = '';
+    playlistPreview.value = {
+      playlist_title: '',
+      channel: '',
+      video_count: 0,
+      videos: []
+    };
   }
 };
+
+/**
+ * Cancel playlist confirmation
+ */
+const cancelPlaylistConfirm = () => {
+  showPlaylistConfirm.value = false;
+  pendingPlaylistUrl.value = '';
+  playlistPreview.value = {
+    playlist_title: '',
+    channel: '',
+    video_count: 0,
+    videos: []
+  };
+  selectedVideoIds.value.clear();
+  searching.value = false;
+};
+
+/**
+ * Toggle selection of a video
+ */
+const toggleSelection = (videoId) => {
+  if (selectedVideoIds.value.has(videoId)) {
+    selectedVideoIds.value.delete(videoId);
+  } else {
+    selectedVideoIds.value.add(videoId);
+  }
+  // Trigger reactivity
+  selectedVideoIds.value = new Set(selectedVideoIds.value);
+};
+
+/**
+ * Check if a video is selected
+ */
+const isSelected = (videoId) => {
+  return selectedVideoIds.value.has(videoId);
+};
+
+/**
+ * Select all non-downloaded videos
+ */
+const selectAll = () => {
+  selectedVideoIds.value = new Set(
+    playlistPreview.value.videos
+      .filter(v => !isAlreadyDownloaded(v.video_id))
+      .map(v => v.video_id)
+  );
+};
+
+/**
+ * Deselect all videos
+ */
+const deselectAll = () => {
+  selectedVideoIds.value.clear();
+  selectedVideoIds.value = new Set();
+};
+
+/**
+ * Check if all selectable videos are selected
+ */
+const allSelected = computed(() => {
+  const selectableVideos = playlistPreview.value.videos?.filter(v => !isAlreadyDownloaded(v.video_id)) || [];
+  if (selectableVideos.length === 0) return false;
+  return selectableVideos.every(v => selectedVideoIds.value.has(v.video_id));
+});
+
+/**
+ * Count selected tracks
+ */
+const selectedTracksCount = computed(() => {
+  return selectedVideoIds.value.size;
+});
+
+/**
+ * Count selected tracks that will be newly downloaded
+ */
+const selectedNewTracksCount = computed(() => {
+  if (!playlistPreview.value.videos) return 0;
+  return playlistPreview.value.videos.filter(v => 
+    selectedVideoIds.value.has(v.video_id) && !isAlreadyDownloaded(v.video_id)
+  ).length;
+});
 
 /**
  * Handle YouTube search
@@ -854,6 +1119,238 @@ onUnmounted(() => {
 }
 
 .dialog-body::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Playlist Confirmation Dialog */
+.playlist-confirm-dialog {
+  max-width: 800px;
+}
+
+.playlist-info {
+  padding: 16px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.playlist-info h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.1em;
+  color: white;
+}
+
+.playlist-meta {
+  margin: 0;
+  color: #999;
+  font-size: 0.9em;
+}
+
+.playlist-tracks-preview {
+  margin-bottom: 20px;
+}
+
+.tracks-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.tracks-header h5 {
+  margin: 0;
+  font-size: 0.95em;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.selection-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.select-btn {
+  padding: 6px 12px;
+  background: #333;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+}
+
+.select-btn:hover {
+  background: #444;
+  border-color: #4CAF50;
+}
+
+.tracks-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #1a1a1a;
+}
+
+.track-preview-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #333;
+  transition: all 0.2s;
+  cursor: pointer;
+  user-select: none;
+}
+
+.track-preview-item:last-child {
+  border-bottom: none;
+}
+
+.track-preview-item:hover {
+  background: #222;
+}
+
+.track-preview-item.already-downloaded {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.track-preview-item.deselected {
+  opacity: 0.5;
+}
+
+.track-preview-item.selected {
+  opacity: 1;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.track-preview-item.selected:hover {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+}
+
+.checkbox-container input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #4CAF50;
+}
+
+.track-number {
+  color: #666;
+  font-size: 0.85em;
+  min-width: 30px;
+  text-align: right;
+}
+
+.track-thumbnail-small {
+  width: 60px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-thumbnail-small img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-placeholder-small {
+  font-size: 1em;
+  color: #666;
+}
+
+.track-info-small {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-title-small {
+  font-size: 0.9em;
+  font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.downloaded-indicator {
+  color: #4CAF50;
+  font-size: 0.85em;
+  margin-left: 8px;
+}
+
+.track-meta-small {
+  font-size: 0.8em;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.confirmation-summary {
+  padding: 16px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  border: 1px solid #4CAF50;
+}
+
+.confirmation-summary p {
+  margin: 0;
+  color: white;
+  font-size: 0.95em;
+}
+
+.confirm-btn {
+  padding: 10px 20px;
+  background: #4CAF50;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background: #45a049;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tracks-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.tracks-list::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.tracks-list::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 4px;
+}
+
+.tracks-list::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 </style>
