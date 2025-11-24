@@ -38,9 +38,31 @@
     ></audio>
 
     <div class="player-controls">
-      <div class="progress-bar" @click="seekToPosition">
+      <div class="progress-bar" @dblclick="seekToPosition">
         <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         <div class="progress-handle" :style="{ left: progressPercent + '%' }"></div>
+        
+        <!-- Loop point markers (only visible when repeat mode is on) -->
+        <template v-if="repeatMode && duration > 0">
+          <div class="loop-region" 
+               :style="{ 
+                 left: loopStartPercent + '%', 
+                 width: (loopEndPercent - loopStartPercent) + '%' 
+               }">
+          </div>
+          <div class="loop-marker loop-start" 
+               :style="{ left: loopStartPercent + '%' }"
+               @mousedown="startDragLoopStart"
+               title="Loop start - drag to adjust">
+            <div class="loop-marker-handle">⟨</div>
+          </div>
+          <div class="loop-marker loop-end" 
+               :style="{ left: loopEndPercent + '%' }"
+               @mousedown="startDragLoopEnd"
+               title="Loop end - drag to adjust">
+            <div class="loop-marker-handle">⟩</div>
+          </div>
+        </template>
       </div>
 
       <div class="time-display">
@@ -141,10 +163,32 @@ export default {
     const repeatMode = ref(false);
     const needsAudioUnlock = ref(false);
     const audioUnlocked = ref(false);
+    const loopStart = ref(null);
+    const loopEnd = ref(null);
+    const isDraggingLoopStart = ref(false);
+    const isDraggingLoopEnd = ref(false);
+    const suppressDriftCorrection = ref(false); // Suppress drift correction after intentional seeks/loops
+    const loopPointUpdateTimeout = ref(null); // Debounce loop point updates
 
     const progressPercent = computed(() => {
       if (duration.value === 0) return 0;
       return (currentTime.value / duration.value) * 100;
+    });
+
+    const loopStartPercent = computed(() => {
+      if (duration.value === 0) return 0;
+      if (loopStart.value === null) return 0;
+      return (loopStart.value / duration.value) * 100;
+    });
+
+    const loopEndPercent = computed(() => {
+      if (duration.value === 0) return 100;
+      if (loopEnd.value === null) return 100;
+      return (loopEnd.value / duration.value) * 100;
+    });
+
+    const hasCustomLoopPoints = computed(() => {
+      return loopStart.value !== null && loopEnd.value !== null;
     });
 
     // Format time as MM:SS
@@ -157,6 +201,17 @@ export default {
     const onTimeUpdate = () => {
       if (audioElement.value) {
         currentTime.value = audioElement.value.currentTime;
+        
+        // Check if we've reached the loop end point in repeat mode
+        if (repeatMode.value && loopEnd.value !== null && currentTime.value >= loopEnd.value) {
+          const seekTo = loopStart.value !== null ? loopStart.value : 0;
+          audioElement.value.currentTime = seekTo;
+          suppressDriftCorrection.value = true;
+          // Clear the flag after a short delay
+          setTimeout(() => {
+            suppressDriftCorrection.value = false;
+          }, 500);
+        }
       }
     };
 
@@ -224,6 +279,140 @@ export default {
         console.log('Repeat mode toggle sent to server');
       } catch (error) {
         console.error('Failed to toggle repeat mode:', error);
+      }
+    };
+
+    // Loop point management
+    const setLoopPoints = async (start, end, immediate = false, fromServer = false) => {
+      // Update local state immediately for visual feedback
+      loopStart.value = start;
+      loopEnd.value = end;
+      
+      // Don't send back to server if this update came from the server
+      if (fromServer) {
+        return;
+      }
+      
+      // Debounce API call during dragging
+      if (loopPointUpdateTimeout.value) {
+        clearTimeout(loopPointUpdateTimeout.value);
+      }
+      
+      const updateServer = async () => {
+        try {
+          await api.setLoopPoints(start, end);
+          console.log('Loop points set on server:', start, end);
+          
+          // Only seek if current position is outside the new loop range and not dragging
+          if (audioElement.value && currentTime.value !== null && !isDraggingLoopStart.value && !isDraggingLoopEnd.value) {
+            if (currentTime.value < start || currentTime.value > end) {
+              console.log('Current position outside loop range, seeking to start');
+              audioElement.value.currentTime = start;
+              suppressDriftCorrection.value = true;
+              // Clear the flag after a short delay
+              setTimeout(() => {
+                suppressDriftCorrection.value = false;
+              }, 1000);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to set loop points:', error);
+        }
+      };
+      
+      if (immediate) {
+        await updateServer();
+      } else {
+        // Debounce by 150ms when dragging
+        loopPointUpdateTimeout.value = setTimeout(updateServer, 150);
+      }
+    };
+
+    const clearLoopPoints = async () => {
+      try {
+        await api.clearLoopPoints();
+        console.log('Loop points cleared');
+      } catch (error) {
+        console.error('Failed to clear loop points:', error);
+      }
+    };
+
+    // Drag handlers for loop markers
+    const startDragLoopStart = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      isDraggingLoopStart.value = true;
+      document.addEventListener('mousemove', dragLoopStart);
+      document.addEventListener('mouseup', stopDragLoopStart);
+    };
+
+    const dragLoopStart = (event) => {
+      if (!isDraggingLoopStart.value || !duration.value) return;
+      
+      const progressBar = event.target.closest('.progress-bar') || document.querySelector('.progress-bar');
+      if (!progressBar) return;
+      
+      const rect = progressBar.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+      const newStart = (percent / 100) * duration.value;
+      
+      // Ensure start is before end
+      const maxStart = loopEnd.value !== null ? loopEnd.value - 0.5 : duration.value;
+      const constrainedStart = Math.min(newStart, maxStart);
+      
+      setLoopPoints(constrainedStart, loopEnd.value !== null ? loopEnd.value : duration.value);
+    };
+
+    const stopDragLoopStart = () => {
+      isDraggingLoopStart.value = false;
+      document.removeEventListener('mousemove', dragLoopStart);
+      document.removeEventListener('mouseup', stopDragLoopStart);
+      
+      // Flush any pending updates immediately when drag ends
+      if (loopPointUpdateTimeout.value) {
+        clearTimeout(loopPointUpdateTimeout.value);
+        const start = loopStart.value !== null ? loopStart.value : 0;
+        const end = loopEnd.value !== null ? loopEnd.value : duration.value;
+        setLoopPoints(start, end, true);
+      }
+    };
+
+    const startDragLoopEnd = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      isDraggingLoopEnd.value = true;
+      document.addEventListener('mousemove', dragLoopEnd);
+      document.addEventListener('mouseup', stopDragLoopEnd);
+    };
+
+    const dragLoopEnd = (event) => {
+      if (!isDraggingLoopEnd.value || !duration.value) return;
+      
+      const progressBar = event.target.closest('.progress-bar') || document.querySelector('.progress-bar');
+      if (!progressBar) return;
+      
+      const rect = progressBar.getBoundingClientRect();
+      const percent = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+      const newEnd = (percent / 100) * duration.value;
+      
+      // Ensure end is after start
+      const minEnd = loopStart.value !== null ? loopStart.value + 0.5 : 0.5;
+      const constrainedEnd = Math.max(newEnd, minEnd);
+      
+      setLoopPoints(loopStart.value !== null ? loopStart.value : 0, constrainedEnd);
+    };
+
+    const stopDragLoopEnd = () => {
+      isDraggingLoopEnd.value = false;
+      document.removeEventListener('mousemove', dragLoopEnd);
+      document.removeEventListener('mouseup', stopDragLoopEnd);
+      
+      // Flush any pending updates immediately when drag ends
+      if (loopPointUpdateTimeout.value) {
+        clearTimeout(loopPointUpdateTimeout.value);
+        const start = loopStart.value !== null ? loopStart.value : 0;
+        const end = loopEnd.value !== null ? loopEnd.value : duration.value;
+        setLoopPoints(start, end, true);
       }
     };
 
@@ -314,6 +503,14 @@ export default {
       // Sync repeat mode
       if (typeof data.repeatMode === 'boolean') {
         repeatMode.value = data.repeatMode;
+      }
+      
+      // Sync loop points
+      if (data.loopStart !== undefined) {
+        loopStart.value = data.loopStart;
+      }
+      if (data.loopEnd !== undefined) {
+        loopEnd.value = data.loopEnd;
       }
     };
 
@@ -437,8 +634,26 @@ export default {
       repeatMode.value = data.repeatMode;
     };
 
+    const handleLoopPointsChange = (data) => {
+      console.log('Loop points change:', data);
+      // Cancel any pending updates since server is authoritative
+      if (loopPointUpdateTimeout.value) {
+        clearTimeout(loopPointUpdateTimeout.value);
+        loopPointUpdateTimeout.value = null;
+      }
+      // Update local state from server, but don't send it back
+      loopStart.value = data.loopStart;
+      loopEnd.value = data.loopEnd;
+    };
+
     const handlePositionCheck = (data) => {
       expectedPosition.value = data.expectedPosition;
+      
+      // Don't apply drift correction if we just performed an intentional seek or loop
+      if (suppressDriftCorrection.value) {
+        console.log('Skipping drift correction - intentional seek/loop in progress');
+        return;
+      }
       
       // Calculate drift at this moment only
       const currentDrift = Math.abs(data.expectedPosition - currentTime.value);
@@ -475,6 +690,7 @@ export default {
       websocket.on('seek', handleSeek);
       websocket.on('stop', handleStop);
       websocket.on('repeat_mode_change', handleRepeatModeChange);
+      websocket.on('loop_points_change', handleLoopPointsChange);
       websocket.on('position_check', handlePositionCheck);
       
       // Set initial volume
@@ -494,6 +710,7 @@ export default {
       websocket.off('seek', handleSeek);
       websocket.off('stop', handleStop);
       websocket.off('repeat_mode_change', handleRepeatModeChange);
+      websocket.off('loop_points_change', handleLoopPointsChange);
       websocket.off('position_check', handlePositionCheck);
     });
 
@@ -510,7 +727,14 @@ export default {
       isPlaying,
       repeatMode,
       needsAudioUnlock,
+      loopStart,
+      loopEnd,
+      isDraggingLoopStart,
+      isDraggingLoopEnd,
       progressPercent,
+      loopStartPercent,
+      loopEndPercent,
+      hasCustomLoopPoints,
       formatTime,
       onTimeUpdate,
       onLoadedMetadata,
@@ -522,6 +746,8 @@ export default {
       handleNextClick,
       handlePreviousClick,
       toggleRepeat,
+      startDragLoopStart,
+      startDragLoopEnd,
       unlockAudio,
       onError,
       seekToPosition,
@@ -668,6 +894,51 @@ audio {
   background: #4CAF50;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Loop point markers */
+.loop-region {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: rgba(33, 150, 243, 0.15);
+  border-left: 2px solid rgba(33, 150, 243, 0.5);
+  border-right: 2px solid rgba(33, 150, 243, 0.5);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.loop-marker {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: #2196F3;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: ew-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+
+.loop-marker:hover {
+  transform: translate(-50%, -50%) scale(1.3);
+  background: #1976D2;
+  box-shadow: 0 3px 10px rgba(33, 150, 243, 0.6);
+}
+
+.loop-marker-handle {
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  pointer-events: none;
+  line-height: 1;
 }
 
 .time-display {

@@ -184,6 +184,59 @@ router.post('/loop', (req, res) => {
 });
 
 /**
+ * Set custom loop points for repeat mode
+ * POST /api/playback/loop-points
+ * Body: { loopStart: number, loopEnd: number } (in seconds)
+ */
+router.post('/loop-points', (req, res) => {
+  try {
+    const { loopStart, loopEnd } = req.body;
+
+    if (typeof loopStart !== 'number' || typeof loopEnd !== 'number') {
+      return res.status(400).json({
+        error: 'Invalid loop points: both loopStart and loopEnd must be numbers',
+      });
+    }
+
+    if (loopStart < 0 || loopEnd <= loopStart) {
+      return res.status(400).json({
+        error: 'Invalid loop points: loopStart must be >= 0 and loopEnd must be > loopStart',
+      });
+    }
+
+    const syncController = getSyncController();
+    const result = syncController.setLoopPoints(loopStart, loopEnd);
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to set loop points');
+    res.status(500).json({
+      error: 'Failed to set loop points',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Clear custom loop points (use full track for repeat)
+ * DELETE /api/playback/loop-points
+ */
+router.delete('/loop-points', (req, res) => {
+  try {
+    const syncController = getSyncController();
+    const result = syncController.clearLoopPoints();
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to clear loop points');
+    res.status(500).json({
+      error: 'Failed to clear loop points',
+      message: error.message,
+    });
+  }
+});
+
+/**
  * Get current playback state
  * GET /api/playback/state
  */

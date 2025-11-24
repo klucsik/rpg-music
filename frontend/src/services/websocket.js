@@ -88,6 +88,11 @@ class WebSocketService {
       this.emit('loop_mode_change', data);
     });
 
+    this.socket.on('loop_points_change', (data) => {
+      this.calculateTimeOffset(data.serverTimestamp);
+      this.emit('loop_points_change', data);
+    });
+
     this.socket.on('position_check', (data) => {
       this.calculateTimeOffset(data.serverTimestamp);
       this.emit('position_check', data);

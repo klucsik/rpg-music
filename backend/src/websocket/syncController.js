@@ -246,6 +246,50 @@ class SyncController {
   }
 
   /**
+   * Set custom loop points
+   */
+  setLoopPoints(loopStart, loopEnd) {
+    sessionState.setLoopPoints(loopStart, loopEnd);
+
+    const payload = {
+      event: 'loop_points_change',
+      data: {
+        loopStart: sessionState.loopStart,
+        loopEnd: sessionState.loopEnd,
+        serverTimestamp: Date.now(),
+      },
+    };
+
+    this.io.emit('loop_points_change', payload.data);
+
+    logger.info({ loopStart, loopEnd }, 'Loop points changed');
+
+    return { success: true, state: sessionState.getState() };
+  }
+
+  /**
+   * Clear custom loop points
+   */
+  clearLoopPoints() {
+    sessionState.clearLoopPoints();
+
+    const payload = {
+      event: 'loop_points_change',
+      data: {
+        loopStart: null,
+        loopEnd: null,
+        serverTimestamp: Date.now(),
+      },
+    };
+
+    this.io.emit('loop_points_change', payload.data);
+
+    logger.info('Loop points cleared');
+
+    return { success: true, state: sessionState.getState() };
+  }
+
+  /**
    * Get current state
    */
   getState() {
@@ -410,7 +454,9 @@ class SyncController {
     if (sessionState.repeatMode && sessionState.currentTrack) {
       logger.info({ trackId: sessionState.currentTrack.id }, 'Repeat mode: replaying current track');
       try {
-        await this.playTrack(sessionState.currentTrack.id, 0);
+        // If custom loop points are set, start at loopStart, otherwise start at 0
+        const startPosition = sessionState.loopStart !== null ? sessionState.loopStart : 0;
+        await this.playTrack(sessionState.currentTrack.id, startPosition);
       } catch (error) {
         logger.error({ error, clientId }, 'Failed to replay track in repeat mode');
       }

@@ -173,6 +173,19 @@ class ApiClient {
     return this.request('/api/playback/loop', { method: 'POST' });
   }
 
+  async setLoopPoints(loopStart, loopEnd) {
+    return this.request('/api/playback/loop-points', {
+      method: 'POST',
+      body: JSON.stringify({ loopStart, loopEnd }),
+    });
+  }
+
+  async clearLoopPoints() {
+    return this.request('/api/playback/loop-points', {
+      method: 'DELETE',
+    });
+  }
+
   async getPlaybackState() {
     return this.request('/api/playback/state');
   }

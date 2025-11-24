@@ -13,6 +13,8 @@ class SessionState {
     this.volume = 0.7; // 0.0 to 1.0
     this.repeatMode = false; // Whether to repeat the current track
     this.loopPlaylist = false; // Whether to loop the entire playlist
+    this.loopStart = null; // Custom loop start point in seconds (null = beginning)
+    this.loopEnd = null; // Custom loop end point in seconds (null = end of track)
   }
 
   /**
@@ -124,12 +126,45 @@ class SessionState {
   }
 
   /**
+   * Set custom loop points
+   */
+  setLoopPoints(loopStart, loopEnd) {
+    this.loopStart = loopStart;
+    this.loopEnd = loopEnd;
+    return this.getState();
+  }
+
+  /**
+   * Clear custom loop points (use full track)
+   */
+  clearLoopPoints() {
+    this.loopStart = null;
+    this.loopEnd = null;
+    return this.getState();
+  }
+
+  /**
    * Get current expected position (for sync checks)
    */
   getCurrentPosition() {
     if (this.playbackState === 'playing' && this.lastUpdateTime) {
       const elapsed = (Date.now() - this.lastUpdateTime) / 1000;
-      return this.position + elapsed;
+      let position = this.position + elapsed;
+      
+      // If we have custom loop points in repeat mode, handle position wrapping
+      if (this.repeatMode && this.loopEnd !== null) {
+        const loopStart = this.loopStart !== null ? this.loopStart : 0;
+        const loopDuration = this.loopEnd - loopStart;
+        
+        if (position >= this.loopEnd) {
+          // Calculate how many times we've looped and where we should be
+          const overrun = position - this.loopEnd;
+          const loops = Math.floor(overrun / loopDuration);
+          position = loopStart + (overrun % loopDuration);
+        }
+      }
+      
+      return position;
     }
     return this.position;
   }
@@ -146,6 +181,8 @@ class SessionState {
       volume: this.volume,
       repeatMode: this.repeatMode,
       loopPlaylist: this.loopPlaylist,
+      loopStart: this.loopStart,
+      loopEnd: this.loopEnd,
       serverTime: Date.now(),
     };
   }
