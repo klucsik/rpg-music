@@ -9,6 +9,8 @@ class WebSocketService {
     this.connected = false;
     this.serverTimeOffset = 0;
     this.listeners = new Map();
+    this.currentRoomId = null;
+    this.rooms = [];
   }
 
   /**
@@ -121,6 +123,19 @@ class WebSocketService {
     this.socket.on('track_deleted', (data) => {
       console.log('🗑️ Track deleted received:', data);
       this.emit('track_deleted', data);
+    });
+
+    // Room events
+    this.socket.on('room_joined', (data) => {
+      console.log('🚪 Joined room:', data);
+      this.currentRoomId = data.roomId;
+      this.emit('room_joined', data);
+    });
+
+    this.socket.on('rooms_info', (data) => {
+      console.log('🏠 Rooms info received:', data);
+      this.rooms = data;
+      this.emit('rooms_info', data);
     });
 
     // Download events
@@ -285,6 +300,30 @@ class WebSocketService {
    */
   getClientId() {
     return this.socket?.id || null;
+  }
+
+  /**
+   * Join a room
+   */
+  joinRoom(roomId) {
+    if (this.socket && this.connected) {
+      console.log('Joining room:', roomId);
+      this.socket.emit('join_room', { roomId });
+    }
+  }
+
+  /**
+   * Get current room ID
+   */
+  getCurrentRoomId() {
+    return this.currentRoomId;
+  }
+
+  /**
+   * Get all rooms info
+   */
+  getRooms() {
+    return this.rooms;
   }
 }
 

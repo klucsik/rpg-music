@@ -27,6 +27,9 @@ const config = {
   wsPingInterval: parseInt(process.env.WS_PING_INTERVAL || '25000', 10),
   wsPingTimeout: parseInt(process.env.WS_PING_TIMEOUT || '60000', 10),
   
+  // Rooms
+  roomCount: parseInt(process.env.ROOM_COUNT || '5', 10),
+  
   // Scanning
   scanOnStartup: process.env.SCAN_ON_STARTUP === 'true',
   watchFileChanges: process.env.WATCH_FILE_CHANGES === 'true',

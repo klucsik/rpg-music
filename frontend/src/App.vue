@@ -3,6 +3,18 @@
     <header class="app-header">
       <h1>🎵 MuzsikApp</h1>
       <div class="header-actions">
+        <div class="room-selector">
+          <button
+            v-for="room in rooms"
+            :key="room.id"
+            :class="['room-btn', { active: room.id === currentRoomId }]"
+            @click="switchRoom(room.id)"
+            :title="`${room.clientCount} client(s)`"
+          >
+            Room {{ room.number }}
+            <span class="client-count" v-if="room.clientCount > 0">{{ room.clientCount }}</span>
+          </button>
+        </div>
         <div class="stats">
           <span class="stat">{{ stats.tracks }} tracks</span>
           <span class="stat">{{ stats.clients }} clients</span>
@@ -92,6 +104,8 @@ export default {
   setup() {
     const currentTrackId = ref(null);
     const currentTrack = ref(null);
+    const currentRoomId = ref('room-1');
+    const rooms = ref([]);
     const libraryRef = ref(null);
     const folderManagerRef = ref(null);
     const playlistRef = ref(null);
@@ -118,7 +132,7 @@ export default {
 
     const onPlayTrack = async (track) => {
       try {
-        await api.playTrack(track.id);
+        await api.playTrack(track.id, 0, currentRoomId.value);
         currentTrackId.value = track.id;
         currentTrack.value = track;
       } catch (error) {
@@ -128,9 +142,13 @@ export default {
     };
 
     const onAddTrackAndPlay = async (track) => {
-      // Add track to playlist and play it
+      // Add track to current room's playlist and play it
       try {
-        await api.addTrackToCollection('current-playlist', track.id);
+        // Get room playlist collection ID
+        const room = rooms.value.find(r => r.id === currentRoomId.value);
+        const collectionId = room ? room.playlistCollectionId : `current-playlist-${currentRoomId.value}`;
+        
+        await api.addTrackToCollection(collectionId, track.id);
         // Refresh playlist to show new track
         if (playlistRef.value) {
           await playlistRef.value.refresh();
@@ -153,30 +171,57 @@ export default {
     };
 
     const handleStateSync = (data) => {
-      if (data.currentTrack) {
-        currentTrackId.value = data.currentTrack.id;
-        currentTrack.value = data.currentTrack;
-      } else {
+      // Only update if it's for current room or no room specified (backward compatibility)
+      if (!data.roomId || data.roomId === currentRoomId.value) {
+        if (data.currentTrack) {
+          currentTrackId.value = data.currentTrack.id;
+          currentTrack.value = data.currentTrack;
+        } else {
+          currentTrackId.value = null;
+          currentTrack.value = null;
+        }
+      }
+    };
+
+    const handlePlayTrack = (data) => {
+      // Only update if it's for current room or no room specified
+      if (!data.roomId || data.roomId === currentRoomId.value) {
+        currentTrackId.value = data.trackId;
+        // Fetch full track info if needed
+        if (data.trackId) {
+          api.getTrack(data.trackId)
+            .then(track => {
+              currentTrack.value = track;
+            })
+            .catch(err => console.error('Failed to fetch track info:', err));
+        }
+      }
+    };
+
+    const handleStop = (data) => {
+      // Only update if it's for current room or no room specified
+      if (!data.roomId || data.roomId === currentRoomId.value) {
         currentTrackId.value = null;
         currentTrack.value = null;
       }
     };
 
-    const handlePlayTrack = (data) => {
-      currentTrackId.value = data.trackId;
-      // Fetch full track info if needed
-      if (data.trackId) {
-        api.getTrack(data.trackId)
-          .then(track => {
-            currentTrack.value = track;
-          })
-          .catch(err => console.error('Failed to fetch track info:', err));
-      }
+    const handleRoomJoined = (data) => {
+      console.log('Room joined:', data);
+      currentRoomId.value = data.roomId;
     };
 
-    const handleStop = () => {
-      currentTrackId.value = null;
-      currentTrack.value = null;
+    const handleRoomsInfo = (data) => {
+      console.log('Rooms info updated:', data);
+      rooms.value = data;
+    };
+
+    const switchRoom = (roomId) => {
+      if (roomId === currentRoomId.value) return;
+      
+      console.log('Switching to room:', roomId);
+      websocket.joinRoom(roomId);
+      // State will be updated via room_joined and state_sync events
     };
 
     // Computed properties for next/previous track availability
@@ -231,6 +276,8 @@ export default {
       websocket.on('state_sync', handleStateSync);
       websocket.on('play_track', handlePlayTrack);
       websocket.on('stop', handleStop);
+      websocket.on('room_joined', handleRoomJoined);
+      websocket.on('rooms_info', handleRoomsInfo);
     });
 
     onUnmounted(() => {
@@ -241,11 +288,15 @@ export default {
       websocket.off('state_sync', handleStateSync);
       websocket.off('play_track', handlePlayTrack);
       websocket.off('stop', handleStop);
+      websocket.off('room_joined', handleRoomJoined);
+      websocket.off('rooms_info', handleRoomsInfo);
     });
 
     return {
       currentTrackId,
       currentTrack,
+      currentRoomId,
+      rooms,
       libraryRef,
       folderManagerRef,
       playlistRef,
@@ -262,6 +313,7 @@ export default {
       closeManageLibrary,
       openManageLibrary,
       handleRefresh,
+      switchRoom,
     };
   },
 };
@@ -315,7 +367,55 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 20px;
+}
+
+.room-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.room-btn {
+  padding: 8px 14px;
+  background: #333;
+  border: 2px solid #555;
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 0.85em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.room-btn:hover {
+  background: #444;
+  border-color: #4CAF50;
+  color: #fff;
+}
+
+.room-btn.active {
+  background: #4CAF50;
+  border-color: #4CAF50;
+  color: white;
+  font-weight: 600;
+}
+
+.room-btn .client-count {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.room-btn.active .client-count {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .manage-btn {

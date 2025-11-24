@@ -139,55 +139,71 @@ class ApiClient {
   }
 
   // Playback
-  async playTrack(trackId, startPosition = 0) {
+  async playTrack(trackId, startPosition = 0, roomId = 'room-1') {
     return this.request('/api/playback/play', {
       method: 'POST',
-      body: JSON.stringify({ trackId, startPosition }),
+      body: JSON.stringify({ trackId, startPosition, roomId }),
     });
   }
 
-  async pause() {
-    return this.request('/api/playback/pause', { method: 'POST' });
+  async pause(roomId = 'room-1') {
+    return this.request('/api/playback/pause', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
   }
 
-  async resume() {
-    return this.request('/api/playback/resume', { method: 'POST' });
+  async resume(roomId = 'room-1') {
+    return this.request('/api/playback/resume', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
   }
 
-  async stop() {
-    return this.request('/api/playback/stop', { method: 'POST' });
+  async stop(roomId = 'room-1') {
+    return this.request('/api/playback/stop', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
   }
 
-  async seek(position) {
+  async seek(position, roomId = 'room-1') {
     return this.request('/api/playback/seek', {
       method: 'POST',
-      body: JSON.stringify({ position }),
+      body: JSON.stringify({ position, roomId }),
     });
   }
 
-  async toggleRepeat() {
-    return this.request('/api/playback/repeat', { method: 'POST' });
+  async toggleRepeat(roomId = 'room-1') {
+    return this.request('/api/playback/repeat', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
   }
 
-  async toggleLoop() {
-    return this.request('/api/playback/loop', { method: 'POST' });
+  async toggleLoop(roomId = 'room-1') {
+    return this.request('/api/playback/loop', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
   }
 
-  async setLoopPoints(loopStart, loopEnd) {
+  async setLoopPoints(loopStart, loopEnd, roomId = 'room-1') {
     return this.request('/api/playback/loop-points', {
       method: 'POST',
-      body: JSON.stringify({ loopStart, loopEnd }),
+      body: JSON.stringify({ loopStart, loopEnd, roomId }),
     });
   }
 
-  async clearLoopPoints() {
+  async clearLoopPoints(roomId = 'room-1') {
     return this.request('/api/playback/loop-points', {
       method: 'DELETE',
+      body: JSON.stringify({ roomId }),
     });
   }
 
-  async getPlaybackState() {
-    return this.request('/api/playback/state');
+  async getPlaybackState(roomId = 'room-1') {
+    return this.request(`/api/playback/state?roomId=${roomId}`);
   }
 
   // System

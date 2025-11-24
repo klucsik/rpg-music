@@ -13,14 +13,25 @@ const router = express.Router();
 
 /**
  * Emit playlist update event if collection is the current playlist
+ * Supports both legacy 'current-playlist' and room-specific playlists
  */
 const emitPlaylistUpdate = (collectionId) => {
-  if (collectionId === 'current-playlist') {
+  // Check if this is a current playlist (legacy or room-specific)
+  if (collectionId === 'current-playlist' || collectionId.startsWith('current-playlist-room-')) {
     try {
       const io = getIO();
       if (io) {
-        io.emit('playlist_update', { collectionId });
-        logger.info({ event: 'playlist_update' }, '📢 Broadcasting playlist update to all clients');
+        // Extract room ID if this is a room-specific playlist
+        const roomMatch = collectionId.match(/^current-playlist-room-(\d+)$/);
+        if (roomMatch) {
+          const roomId = `room-${roomMatch[1]}`;
+          io.to(roomId).emit('playlist_update', { collectionId, roomId });
+          logger.info({ event: 'playlist_update', roomId, collectionId }, '📢 Broadcasting playlist update to room');
+        } else {
+          // Legacy 'current-playlist' - broadcast to all
+          io.emit('playlist_update', { collectionId });
+          logger.info({ event: 'playlist_update', collectionId }, '📢 Broadcasting playlist update to all clients');
+        }
       }
     } catch (err) {
       logger.error({ error: err }, 'Failed to emit playlist update');

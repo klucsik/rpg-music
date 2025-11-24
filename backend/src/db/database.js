@@ -89,6 +89,23 @@ async function runMigrations() {
     }
   }
   
+  // Check if room-specific playlists exist in track_collections (for multi-room support)
+  const collectionsTableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='track_collections'").all();
+  if (collectionsTableExists.length > 0) {
+    for (let i = 1; i <= 5; i++) {
+      const roomPlaylistId = `current-playlist-room-${i}`;
+      const roomPlaylistExists = db.prepare("SELECT id FROM track_collections WHERE id = ?").get(roomPlaylistId);
+      
+      if (!roomPlaylistExists) {
+        logger.info(`Creating room ${i} playlist collection`);
+        db.prepare(`
+          INSERT INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+          VALUES (?, ?, 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'))
+        `).run(roomPlaylistId, `Room ${i} Playlist`);
+      }
+    }
+  }
+  
   logger.info('Database migrations completed');
 }
 

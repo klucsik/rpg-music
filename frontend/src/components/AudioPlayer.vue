@@ -150,6 +150,7 @@ export default {
     const currentTrack = ref(null);
     const currentTime = ref(0);
     const duration = ref(0);
+    const currentRoomId = ref('room-1');
     
     // Load saved volume from localStorage or default to 0.3
     const savedVolume = parseFloat(localStorage.getItem('rpg-music-volume') || '0.3');
@@ -248,9 +249,9 @@ export default {
     const handlePlayPauseClick = async () => {
       try {
         if (isPlaying.value) {
-          await api.pause();
+          await api.pause(currentRoomId.value);
         } else {
-          await api.resume();
+          await api.resume(currentRoomId.value);
         }
       } catch (error) {
         console.error('Play/pause failed:', error);
@@ -259,7 +260,7 @@ export default {
 
     const handleStopClick = async () => {
       try {
-        await api.stop();
+        await api.stop(currentRoomId.value);
       } catch (error) {
         console.error('Stop failed:', error);
       }
@@ -275,7 +276,7 @@ export default {
 
     const toggleRepeat = async () => {
       try {
-        await api.toggleRepeat();
+        await api.toggleRepeat(currentRoomId.value);
         console.log('Repeat mode toggle sent to server');
       } catch (error) {
         console.error('Failed to toggle repeat mode:', error);
@@ -300,7 +301,7 @@ export default {
       
       const updateServer = async () => {
         try {
-          await api.setLoopPoints(start, end);
+          await api.setLoopPoints(start, end, currentRoomId.value);
           console.log('Loop points set on server:', start, end);
           
           // Only seek if current position is outside the new loop range and not dragging
@@ -330,7 +331,7 @@ export default {
 
     const clearLoopPoints = async () => {
       try {
-        await api.clearLoopPoints();
+        await api.clearLoopPoints(currentRoomId.value);
         console.log('Loop points cleared');
       } catch (error) {
         console.error('Failed to clear loop points:', error);
@@ -449,7 +450,7 @@ export default {
       
       // Call API to sync seek across all clients
       try {
-        await api.seek(newTime);
+        await api.seek(newTime, currentRoomId.value);
         console.log('Seek request sent to server:', newTime);
       } catch (error) {
         console.error('Failed to seek:', error);
@@ -646,6 +647,11 @@ export default {
       loopEnd.value = data.loopEnd;
     };
 
+    const handleRoomJoined = (data) => {
+      console.log('AudioPlayer: Room joined', data);
+      currentRoomId.value = data.roomId;
+    };
+
     const handlePositionCheck = (data) => {
       expectedPosition.value = data.expectedPosition;
       
@@ -680,6 +686,12 @@ export default {
       // Connect to WebSocket
       websocket.connect();
       
+      // Get initial room ID
+      const initialRoomId = websocket.getCurrentRoomId();
+      if (initialRoomId) {
+        currentRoomId.value = initialRoomId;
+      }
+      
       // Set up event listeners
       websocket.on('connected', handleConnected);
       websocket.on('disconnected', handleDisconnected);
@@ -692,6 +704,7 @@ export default {
       websocket.on('repeat_mode_change', handleRepeatModeChange);
       websocket.on('loop_points_change', handleLoopPointsChange);
       websocket.on('position_check', handlePositionCheck);
+      websocket.on('room_joined', handleRoomJoined);
       
       // Set initial volume
       if (audioElement.value) {
@@ -712,6 +725,7 @@ export default {
       websocket.off('repeat_mode_change', handleRepeatModeChange);
       websocket.off('loop_points_change', handleLoopPointsChange);
       websocket.off('position_check', handlePositionCheck);
+      websocket.off('room_joined', handleRoomJoined);
     });
 
     return {

@@ -1,10 +1,10 @@
 /**
  * Session state management
- * Tracks the current playback state across all clients
+ * Tracks the current playback state for a room
  * Simplified: Server only tracks state, clients handle timing and report when tracks end
  */
 
-class SessionState {
+export class SessionState {
   constructor() {
     this.currentTrack = null;
     this.playbackState = 'stopped'; // 'playing', 'paused', 'stopped'
@@ -202,7 +202,7 @@ class SessionState {
   }
 }
 
-// Singleton instance
+// Legacy singleton instance for backward compatibility
 const sessionState = new SessionState();
 
 export default sessionState;

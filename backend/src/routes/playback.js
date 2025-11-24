@@ -11,7 +11,7 @@ const router = express.Router();
  */
 router.post('/play', async (req, res) => {
   try {
-    const { trackId, startPosition = 0 } = req.body;
+    const { trackId, startPosition = 0, roomId = 'room-1' } = req.body;
 
     if (!trackId) {
       return res.status(400).json({
@@ -20,7 +20,7 @@ router.post('/play', async (req, res) => {
     }
 
     const syncController = getSyncController();
-    const result = await syncController.playTrack(trackId, startPosition);
+    const result = await syncController.playTrack(trackId, roomId, startPosition);
 
     res.json(result);
   } catch (error) {
@@ -38,8 +38,9 @@ router.post('/play', async (req, res) => {
  */
 router.post('/pause', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.pause();
+    const result = syncController.pause(roomId);
 
     res.json(result);
   } catch (error) {
@@ -57,8 +58,9 @@ router.post('/pause', (req, res) => {
  */
 router.post('/resume', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.resume();
+    const result = syncController.resume(roomId);
 
     res.json(result);
   } catch (error) {
@@ -76,8 +78,9 @@ router.post('/resume', (req, res) => {
  */
 router.post('/stop', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.stop();
+    const result = syncController.stop(roomId);
 
     res.json(result);
   } catch (error) {
@@ -96,7 +99,7 @@ router.post('/stop', (req, res) => {
  */
 router.post('/seek', (req, res) => {
   try {
-    const { position } = req.body;
+    const { position, roomId = 'room-1' } = req.body;
 
     if (typeof position !== 'number') {
       return res.status(400).json({
@@ -105,7 +108,7 @@ router.post('/seek', (req, res) => {
     }
 
     const syncController = getSyncController();
-    const result = syncController.seek(position);
+    const result = syncController.seek(position, roomId);
 
     res.json(result);
   } catch (error) {
@@ -124,7 +127,7 @@ router.post('/seek', (req, res) => {
  */
 router.post('/volume', (req, res) => {
   try {
-    const { volume } = req.body;
+    const { volume, roomId = 'room-1' } = req.body;
 
     if (typeof volume !== 'number') {
       return res.status(400).json({
@@ -133,7 +136,7 @@ router.post('/volume', (req, res) => {
     }
 
     const syncController = getSyncController();
-    const result = syncController.setVolume(volume);
+    const result = syncController.setVolume(volume, roomId);
 
     res.json(result);
   } catch (error) {
@@ -151,8 +154,9 @@ router.post('/volume', (req, res) => {
  */
 router.post('/repeat', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.toggleRepeat();
+    const result = syncController.toggleRepeat(roomId);
 
     res.json(result);
   } catch (error) {
@@ -170,8 +174,9 @@ router.post('/repeat', (req, res) => {
  */
 router.post('/loop', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.toggleLoop();
+    const result = syncController.toggleLoop(roomId);
 
     res.json(result);
   } catch (error) {
@@ -190,7 +195,7 @@ router.post('/loop', (req, res) => {
  */
 router.post('/loop-points', (req, res) => {
   try {
-    const { loopStart, loopEnd } = req.body;
+    const { loopStart, loopEnd, roomId = 'room-1' } = req.body;
 
     if (typeof loopStart !== 'number' || typeof loopEnd !== 'number') {
       return res.status(400).json({
@@ -205,7 +210,7 @@ router.post('/loop-points', (req, res) => {
     }
 
     const syncController = getSyncController();
-    const result = syncController.setLoopPoints(loopStart, loopEnd);
+    const result = syncController.setLoopPoints(loopStart, loopEnd, roomId);
 
     res.json(result);
   } catch (error) {
@@ -223,8 +228,9 @@ router.post('/loop-points', (req, res) => {
  */
 router.delete('/loop-points', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.body;
     const syncController = getSyncController();
-    const result = syncController.clearLoopPoints();
+    const result = syncController.clearLoopPoints(roomId);
 
     res.json(result);
   } catch (error) {
@@ -242,8 +248,9 @@ router.delete('/loop-points', (req, res) => {
  */
 router.get('/state', (req, res) => {
   try {
+    const { roomId = 'room-1' } = req.query;
     const syncController = getSyncController();
-    const state = syncController.getState();
+    const state = syncController.getState(roomId);
 
     res.json(state);
   } catch (error) {

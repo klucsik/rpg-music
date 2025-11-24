@@ -43,3 +43,19 @@ VALUES ('library', 'Music Library', 'library', NULL, 0, 0, strftime('%s', 'now')
 -- This is the main playback queue
 INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
 VALUES ('current-playlist', 'Current Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));
+
+-- Create room-specific playlist collections (for multi-room support)
+INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+VALUES ('current-playlist-room-1', 'Room 1 Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));
+
+INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+VALUES ('current-playlist-room-2', 'Room 2 Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));
+
+INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+VALUES ('current-playlist-room-3', 'Room 3 Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));
+
+INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+VALUES ('current-playlist-room-4', 'Room 4 Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));
+
+INSERT OR IGNORE INTO track_collections (id, name, type, parent_id, sort_order, is_ordered, created_at, updated_at)
+VALUES ('current-playlist-room-5', 'Room 5 Playlist', 'playlist', NULL, 0, 1, strftime('%s', 'now'), strftime('%s', 'now'));

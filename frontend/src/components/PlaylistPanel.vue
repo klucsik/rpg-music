@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import OrderedTrackList from './OrderedTrackList.vue';
 import { useTrackCollection } from '../composables/useTrackCollection';
 import api from '../services/api';
@@ -119,7 +119,12 @@ const emit = defineEmits([
   'playlist-updated'
 ]);
 
-// Use the collection composable for current playlist
+// Track current room and collection ID
+const currentRoomId = ref('room-1');
+const playlistCollectionId = computed(() => `current-playlist-${currentRoomId.value}`);
+
+// Use track collection composable with computed collection ID
+// The composable will automatically handle changes to the collection ID
 const {
   tracks,
   loading,
@@ -133,15 +138,19 @@ const {
   clearTracks,
   handleTrackDrop: handleTrackDropComposable,
   handleTrackReorder: handleTrackReorderComposable
-} = useTrackCollection('current-playlist', {
+} = useTrackCollection(playlistCollectionId, {
   autoLoad: true,
   enableWebSocket: true,
   webSocketEvents: [
     {
       event: 'playlist_update',
       handler: (data, { refresh }) => {
-        console.log('Playlist updated via WebSocket');
-        refresh();
+        console.log('Playlist updated via WebSocket', data);
+        // Only refresh if this event is for our current room's playlist
+        if (data.collectionId === playlistCollectionId.value) {
+          console.log('Refreshing playlist for collection:', data.collectionId);
+          refresh();
+        }
       }
     }
   ]
@@ -160,6 +169,19 @@ const loopPlaylist = ref(false);
 watch(tracks, (newTracks) => {
   emit('playlist-updated', newTracks);
 }, { deep: true });
+
+/**
+ * Handle room joined event
+ */
+const handleRoomJoined = (data) => {
+  console.log('PlaylistPanel: Room joined', data);
+  currentRoomId.value = data.roomId;
+  // The computed playlistCollectionId will update automatically
+  // Trigger a refresh to load the new room's playlist
+  setTimeout(() => {
+    loadCollection();
+  }, 100);
+};
 
 /**
  * Handle loop mode change from WebSocket
@@ -202,6 +224,13 @@ onMounted(() => {
   websocket.on('state_sync', handleStateSync);
   websocket.on('track_updated', handleTrackUpdated);
   websocket.on('track_deleted', handleTrackDeleted);
+  websocket.on('room_joined', handleRoomJoined);
+  
+  // Set initial room from websocket if available
+  const initialRoomId = websocket.getCurrentRoomId();
+  if (initialRoomId && initialRoomId !== currentRoomId.value) {
+    currentRoomId.value = initialRoomId;
+  }
   
   // Request current state to sync loop mode
   websocket.requestState();
@@ -212,6 +241,7 @@ onUnmounted(() => {
   websocket.off('state_sync', handleStateSync);
   websocket.off('track_updated', handleTrackUpdated);
   websocket.off('track_deleted', handleTrackDeleted);
+  websocket.off('room_joined', handleRoomJoined);
 });
 
 /**
@@ -273,7 +303,7 @@ const handleClear = async () => {
  */
 const toggleLoop = async () => {
   try {
-    await api.toggleLoop();
+    await api.toggleLoop(currentRoomId.value);
     console.log('Loop playlist mode toggle sent to server');
   } catch (err) {
     console.error('Failed to toggle loop playlist mode:', err);
@@ -295,8 +325,9 @@ const handleShuffle = async () => {
     // Clear and re-add in new order
     await clearTracks();
     
+    const roomPlaylistId = playlistCollectionId.value;
     for (const item of shuffled) {
-      await api.addTrackToCollection('current-playlist', item.track.id);
+      await api.addTrackToCollection(roomPlaylistId, item.track.id);
     }
     
     await refresh();

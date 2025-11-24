@@ -110,6 +110,10 @@ const props = defineProps({
 
 const emit = defineEmits(['track-play']);
 
+// Track current room
+const currentRoomId = ref('room-1');
+const playlistCollectionId = computed(() => `current-playlist-${currentRoomId.value}`);
+
 // Folder management
 const folders = ref([]);
 const expandedFolderIds = ref(new Set());
@@ -291,11 +295,12 @@ const deleteFolder = async () => {
  */
 const playFolder = async (folder) => {
   try {
-    // Clear current playlist and add all folder tracks
-    await api.clearCollectionTracks('current-playlist');
+    // Clear current room's playlist and add all folder tracks
+    const roomPlaylistId = playlistCollectionId.value;
+    await api.clearCollectionTracks(roomPlaylistId);
     const folderData = await api.getCollection(folder.id);
     for (const track of folderData.tracks) {
-      await api.addTrackToCollection('current-playlist', track.id);
+      await api.addTrackToCollection(roomPlaylistId, track.id);
     }
   } catch (err) {
     console.error('Failed to play folder:', err);
@@ -307,9 +312,10 @@ const playFolder = async (folder) => {
  */
 const addFolderToPlaylist = async (folder) => {
   try {
+    const roomPlaylistId = playlistCollectionId.value;
     const folderData = await api.getCollection(folder.id);
     for (const track of folderData.tracks) {
-      await api.addTrackToCollection('current-playlist', track.id);
+      await api.addTrackToCollection(roomPlaylistId, track.id);
     }
   } catch (err) {
     console.error('Failed to add folder to playlist:', err);
@@ -435,6 +441,14 @@ const handleTrackDeleted = (data) => {
   loadFolders();
 };
 
+/**
+ * Handle room joined event
+ */
+const handleRoomJoined = (data) => {
+  console.log('FolderManagerPanel: Room joined', data);
+  currentRoomId.value = data.roomId;
+};
+
 // Load folders on mount
 loadFolders();
 
@@ -442,11 +456,19 @@ loadFolders();
 onMounted(() => {
   websocket.on('track_updated', handleTrackUpdated);
   websocket.on('track_deleted', handleTrackDeleted);
+  websocket.on('room_joined', handleRoomJoined);
+  
+  // Get initial room ID
+  const initialRoomId = websocket.getCurrentRoomId();
+  if (initialRoomId) {
+    currentRoomId.value = initialRoomId;
+  }
 });
 
 onUnmounted(() => {
   websocket.off('track_updated', handleTrackUpdated);
   websocket.off('track_deleted', handleTrackDeleted);
+  websocket.off('room_joined', handleRoomJoined);
 });
 
 // Expose refresh method

@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import logger from '../utils/logger.js';
 import config from '../config/config.js';
 import SyncController from './syncController.js';
+import roomStateManager from './roomState.js';
 import { collectionQueries } from '../db/database.js';
 
 let io = null;
@@ -39,45 +40,122 @@ export function initWebSocket(httpServer) {
       userAgent: socket.handshake.headers['user-agent'],
     });
 
-    // Send current state to new client
-    socket.emit('state_sync', syncController.getState());
+    // Join default room (room-1)
+    const defaultRoom = roomStateManager.getDefaultRoom();
+    socket.join(defaultRoom.id);
+    roomStateManager.joinRoom(clientId, defaultRoom.id);
     
-    // Send current playlist to new client (using collection system)
-    const playlistResult = collectionQueries.getCollectionTracks('current-playlist', 1000, 0);
+    logger.info({ clientId, roomId: defaultRoom.id }, 'Client joined default room');
+
+    // Send current state to new client
+    socket.emit('state_sync', syncController.getState(defaultRoom.id));
+    
+    // Send current playlist for the room
+    const playlistResult = collectionQueries.getCollectionTracks(defaultRoom.playlistCollectionId, 1000, 0);
     const playlist = playlistResult.tracks || [];
     socket.emit('playlist_update', playlist);
-    logger.debug({ clientId, playlistLength: playlist.length }, 'Sent initial playlist to new client');
+    
+    // Send room info
+    socket.emit('room_joined', {
+      roomId: defaultRoom.id,
+      roomNumber: defaultRoom.number,
+      clientCount: roomStateManager.getRoomClientCount(defaultRoom.id),
+    });
+    
+    // Send all rooms info
+    socket.emit('rooms_info', roomStateManager.getAllRooms());
+    
+    logger.debug({ clientId, roomId: defaultRoom.id, playlistLength: playlist.length }, 'Sent initial state to new client');
+
+    // Handle room join request
+    socket.on('join_room', (data) => {
+      const { roomId } = data;
+      
+      try {
+        if (!roomStateManager.roomExists(roomId)) {
+          socket.emit('error', { message: `Room ${roomId} does not exist` });
+          return;
+        }
+
+        // Leave current room
+        const oldRoomId = roomStateManager.getClientRoomId(clientId);
+        if (oldRoomId) {
+          socket.leave(oldRoomId);
+        }
+
+        // Join new room
+        socket.join(roomId);
+        const room = roomStateManager.joinRoom(clientId, roomId);
+
+        logger.info({ clientId, roomId, oldRoomId }, 'Client switched rooms');
+
+        // Send room state to client
+        socket.emit('state_sync', syncController.getState(roomId));
+        
+        // Send room playlist
+        const playlistResult = collectionQueries.getCollectionTracks(room.playlistCollectionId, 1000, 0);
+        const playlist = playlistResult.tracks || [];
+        socket.emit('playlist_update', playlist);
+        
+        // Confirm room join
+        socket.emit('room_joined', {
+          roomId: room.id,
+          roomNumber: room.number,
+          clientCount: roomStateManager.getRoomClientCount(roomId),
+        });
+
+        // Broadcast updated room info to all clients
+        io.emit('rooms_info', roomStateManager.getAllRooms());
+        
+      } catch (error) {
+        logger.error({ error, clientId, roomId }, 'Failed to join room');
+        socket.emit('error', { message: error.message });
+      }
+    });
 
     // Handle client requests for current state
     socket.on('request_state', () => {
-      logger.debug({ clientId }, 'Client requested state');
-      socket.emit('state_sync', syncController.getState());
+      const roomId = roomStateManager.getClientRoomId(clientId) || 'room-1';
+      logger.debug({ clientId, roomId }, 'Client requested state');
+      socket.emit('state_sync', syncController.getState(roomId));
       
-      // Also send playlist state
-      const playlistResult = collectionQueries.getCollectionTracks('current-playlist', 1000, 0);
+      // Also send playlist state for the room
+      const room = roomStateManager.getRoom(roomId);
+      const playlistResult = collectionQueries.getCollectionTracks(room.playlistCollectionId, 1000, 0);
       const playlist = playlistResult.tracks || [];
       socket.emit('playlist_update', playlist);
     });
 
     // Handle position reports from clients
     socket.on('position_report', (data) => {
-      syncController.handlePositionReport(clientId, data);
+      const roomId = roomStateManager.getClientRoomId(clientId) || 'room-1';
+      syncController.handlePositionReport(clientId, roomId, data);
     });
 
     // Handle client errors
     socket.on('client_error', (data) => {
-      syncController.handleClientError(clientId, data);
+      const roomId = roomStateManager.getClientRoomId(clientId) || 'room-1';
+      syncController.handleClientError(clientId, roomId, data);
     });
 
     // Handle track ended event from client
     socket.on('track_ended', () => {
-      logger.info({ clientId }, 'Client reported track ended');
-      syncController.handleTrackEnded(clientId);
+      const roomId = roomStateManager.getClientRoomId(clientId) || 'room-1';
+      logger.info({ clientId, roomId }, 'Client reported track ended');
+      syncController.handleTrackEnded(clientId, roomId);
     });
 
     // Handle disconnection
     socket.on('disconnect', (reason) => {
       logger.info({ clientId, reason }, 'Client disconnected');
+      
+      // Leave room
+      const roomId = roomStateManager.leaveRoom(clientId);
+      if (roomId) {
+        // Broadcast updated room info to all clients
+        io.emit('rooms_info', roomStateManager.getAllRooms());
+      }
+      
       connectedClients.delete(clientId);
     });
   });
