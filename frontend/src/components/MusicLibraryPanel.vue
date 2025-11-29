@@ -343,7 +343,7 @@ defineExpose({
 .header-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
 }
 
 .library-header h3 {

@@ -329,7 +329,7 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 body {
@@ -367,17 +367,17 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
 }
 
 .room-selector {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 
 .room-btn {
-  padding: 8px 14px;
+  padding: 8px 10px;
   background: #333;
   border: 2px solid #555;
   border-radius: 6px;
@@ -465,9 +465,9 @@ body {
   max-width: 1920px;
   width: 100%;
   margin: 0 auto;
-  padding: 10px;
+  padding: 0px;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
   min-height: 0;
 }
 
@@ -477,7 +477,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   flex-shrink: 0;
-  max-height: 280px;
+  max-height: 40%;
 }
 
 /* Main content area - scrollable lists */
@@ -487,7 +487,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   min-height: 350px;
-  overflow: hidden;
+  max-height: 58%;
 }
 
 .manage-library-row {
@@ -495,7 +495,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 350px;
-  overflow: hidden;
+  max-height: 58%;
 }
 
 .player-column,
@@ -505,10 +505,12 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow: hidden;
+
 }
 
-.library-column,
+.library-column{
+  min-height: 400px;
+}
 .folders-column {
   min-height: 400px;
 }
@@ -545,6 +547,11 @@ body {
     min-height: 300px;
   }
   
+  .manage-library-row {
+    grid-template-columns: 1fr;
+    min-height: 300px;
+  }
+
   .library-column,
   .folders-column {
     min-height: 300px;

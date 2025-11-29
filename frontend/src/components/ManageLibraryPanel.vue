@@ -606,7 +606,7 @@ defineExpose({
   flex-direction: column;
   background: #1a1a1a;
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .panel-header {
@@ -645,7 +645,8 @@ defineExpose({
   display: flex;
   gap: 1px;
   background: #333;
-  overflow: hidden;
+  overflow: visible;
+  max-height: 50%;
 }
 
 .left-panel {
@@ -654,10 +655,14 @@ defineExpose({
   flex-direction: column;
   background: #1a1a1a;
   overflow: hidden;
+  min-height: 400px;
+
 }
 
 .right-panel {
-  width: 350px;
+  min-width: 350px;
+  min-height: 400px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: #1a1a1a;
