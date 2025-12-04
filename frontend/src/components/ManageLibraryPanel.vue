@@ -224,7 +224,7 @@
       <div class="dialog">
         <h3>Delete Track?</h3>
         <p>Are you sure you want to delete "{{ trackToDelete?.title }}"?</p>
-        <p class="warning">⚠️ This will remove the track from the library and all collections. The physical file will NOT be deleted.</p>
+        <p class="warning">⚠️ This will remove the track from the library, all collections and the filesystem.</p>
         
         <div class="dialog-actions">
           <button @click="showDeleteDialog = false" class="cancel-btn">Cancel</button>

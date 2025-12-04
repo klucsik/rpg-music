@@ -16,14 +16,10 @@ import collectionsRoutes from './routes/collections.js';
 import downloadsRoutes from './routes/downloads.js';
 import { scanMusicLibrary } from './scanner/fileScanner.js';
 import { initWebSocket, closeWebSocket, getClientCount } from './websocket/socketServer.js';
-import FileWatcher from './services/fileWatcher.js';
 import downloadQueue from './services/downloadQueue.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Initialize file watcher
-let fileWatcher = null;
 
 // Initialize Express app
 const app = express();
@@ -167,10 +163,8 @@ async function start() {
     // Resume download queue (process any pending jobs from previous run)
     await downloadQueue.resumeQueue();
     
-    // Start file watcher
-    logger.info('Starting file watcher...');
-    fileWatcher = new FileWatcher(config.musicDir);
-    fileWatcher.start();
+    // File watcher disabled - library updates happen on startup scan and through download queue
+    logger.info('File watcher disabled - library synced on startup and through downloads');
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);
@@ -182,11 +176,6 @@ async function start() {
  */
 async function shutdown() {
   logger.info('Shutting down gracefully...');
-  
-  // Stop file watcher
-  if (fileWatcher) {
-    fileWatcher.stop();
-  }
   
   // Close WebSocket server
   closeWebSocket();
