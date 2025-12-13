@@ -329,96 +329,86 @@ defineExpose({
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #1a1a1a;
-  border-radius: 8px;
+  background: var(--color-bg-dark);
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
 .library-header {
-  padding: 12px;
-  border-bottom: 1px solid #333;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border-dark);
   background: #222;
 }
 
 .header-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
 }
 
 .library-header h3 {
   margin: 0;
-  font-size: 1em;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .library-search {
   flex: 1;
+  min-width: 150px;
 }
 
 .library-search input {
   width: 100%;
-  padding: 8px 12px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.9em;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  transition: var(--transition-quick);
 }
 
 .library-search input:focus {
   outline: none;
-  border-color: #42b983;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
-.add-music-btn {
-  padding: 6px 12px;
-  background: #4CAF50;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
-  color: white;
-  text-decoration: none;
-  font-size: 0.9em;
-  white-space: nowrap;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-family: inherit;
+.library-search input::placeholder {
+  color: var(--color-text-muted);
 }
 
-.add-music-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
-}
-
-.add-music-btn:active {
-  transform: scale(0.98);
-}
-
+.add-music-btn,
 .manage-library-btn {
-  padding: 6px 12px;
-  background: #4CAF50;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
   color: white;
   text-decoration: none;
-  font-size: 0.9em;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
-  transition: all 0.2s;
+  transition: var(--transition-quick);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-xs);
   cursor: pointer;
   font-family: inherit;
+  font-weight: var(--font-weight-normal);
+  flex-shrink: 0;
 }
 
+.add-music-btn:hover,
 .manage-library-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
+.add-music-btn:active,
 .manage-library-btn:active {
   transform: scale(0.98);
 }
@@ -426,63 +416,68 @@ defineExpose({
 .order-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
 }
 
 .order-select {
-  padding: 6px 8px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.85em;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-quick);
 }
 
 .order-select:hover {
-  border-color: #4CAF50;
+  border-color: var(--color-primary);
 }
 
 .order-select:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: var(--color-primary);
 }
 
 .order-direction-btn {
-  padding: 6px 10px;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 4px;
-  color: white;
-  font-size: 1em;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-quick);
   min-width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .order-direction-btn:hover {
   background: #333;
-  border-color: #4CAF50;
+  border-color: var(--color-primary);
 }
 
 .order-direction-btn:active {
-  background: #4CAF50;
+  background: var(--color-primary);
 }
 
 .library-stats {
-  font-size: 0.85em;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
+/* Track Item Styles */
 .track-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-md);
   flex: 1;
   min-width: 0;
   cursor: grab;
@@ -496,9 +491,9 @@ defineExpose({
   width: 71px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: #333;
+  background: var(--color-bg-input);
 }
 
 .track-thumbnail img {
@@ -507,85 +502,138 @@ defineExpose({
   object-fit: cover;
 }
 
-.track-thumbnail.error,
 .track-thumbnail-placeholder {
   width: 71px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: 4px;
-  background: #333;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.2em;
-  color: #666;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .track-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--spacing-xs);
   min-width: 0;
   flex: 1;
 }
 
 .track-title {
-  font-size: 0.95em;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-xs);
 }
 
 .youtube-badge {
-  font-size: 0.8em;
+  font-size: var(--font-size-xs);
   opacity: 0.7;
   flex-shrink: 0;
 }
 
 .track-meta {
-  font-size: 0.8em;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Empty State */
 .empty-library {
   text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-muted);
+}
+
+.empty-library p {
+  margin: 0;
 }
 
 .empty-hint {
-  font-size: 0.9em;
-  color: #666;
-  margin-top: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-md);
 }
 
+/* Footer */
 .library-footer {
-  padding: 10px;
+  padding: var(--spacing-md);
   text-align: center;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--color-border-dark);
 }
 
 .library-footer button {
-  padding: 8px 16px;
-  background: #42b983;
-  border: none;
-  border-radius: 4px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
   color: white;
   cursor: pointer;
-  font-size: 0.9em;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  transition: var(--transition-quick);
 }
 
 .library-footer button:hover:not(:disabled) {
-  background: #35a372;
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
 }
 
 .library-footer button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .header-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .library-search {
+    min-width: unset;
+  }
+
+  .order-controls {
+    width: 100%;
+  }
+
+  .library-stats {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .library-header {
+    padding: var(--spacing-sm);
+  }
+
+  .header-row {
+    gap: var(--spacing-xs);
+  }
+
+  .track-thumbnail {
+    width: 60px;
+    height: 36px;
+  }
+
+  .track-thumbnail-placeholder {
+    width: 60px;
+    height: 36px;
+  }
 }
 </style>

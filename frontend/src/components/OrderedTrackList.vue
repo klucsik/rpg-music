@@ -584,6 +584,7 @@ const handleContainerDrop = (event) => {
   padding: 0 8px;
   cursor: pointer;
   transition: color 0.2s;
+  overflow: hidden;
 }
 
 .remove-btn:hover {

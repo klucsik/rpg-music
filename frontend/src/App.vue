@@ -320,6 +320,62 @@ export default {
 </script>
 
 <style>
+/* =====================================================
+   CSS VARIABLES - THEME & LAYOUT CONFIGURATION
+   ===================================================== */
+:root {
+  /* === Colors === */
+  --color-primary: #4CAF50;
+  --color-primary-hover: #45a049;
+  --color-bg-dark: #1a1a1a;
+  --color-bg-panel: #2a2a2a;
+  --color-bg-input: #333;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #999;
+  --color-text-muted: #666;
+  --color-border: #444;
+  --color-border-light: #555;
+
+  /* === Typography === */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  --font-size-base: 1em;
+  --font-size-sm: 0.85em;
+  --font-size-lg: 1.3em;
+  --font-weight-normal: 500;
+  --font-weight-bold: 600;
+
+  /* === Spacing === */
+  --spacing-xs: 4px;
+  --spacing-sm: 6px;
+  --spacing-md: 10px;
+  --spacing-lg: 12px;
+  --spacing-xl: 15px;
+  --spacing-2xl: 20px;
+
+  /* === Layout - Desktop === */
+  --layout-header-height: 50px;
+  --layout-gap: 10px;
+  --layout-row-height-top: 40%;
+  --layout-row-height-bottom: 60%;
+
+  /* === Breakpoints === */
+  --breakpoint-tablet: 1024px;
+  --breakpoint-mobile: 768px;
+
+  /* === Border Radius === */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* === Transitions === */
+  --transition-quick: all 0.2s;
+}
+
+/* =====================================================
+   RESET & BASE STYLES
+   ===================================================== */
 * {
   box-sizing: border-box;
 }
@@ -329,311 +385,409 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  overflow: visible;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #1a1a1a;
-  color: #e0e0e0;
+  background: var(--color-bg-dark);
+  color: var(--color-text-primary);
 }
 
+/* =====================================================
+   SCROLLBAR STYLING
+   ===================================================== */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--color-bg-dark);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary) var(--color-bg-dark);
+}
+
+/* =====================================================
+   MAIN LAYOUT
+   ===================================================== */
 #app-content {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
 }
 
+/* =====================================================
+   HEADER
+   ===================================================== */
 .app-header {
-  background: #2a2a2a;
-  padding: 8px 15px;
-  border-bottom: 2px solid #4CAF50;
+  background: var(--color-bg-panel);
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-bottom: 2px solid var(--color-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+  height: var(--layout-header-height);
+  gap: var(--spacing-xl);
 }
 
 .app-header h1 {
   margin: 0;
-  font-size: 1.3em;
-  color: #4CAF50;
+  font-size: var(--font-size-lg);
+  color: var(--color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: var(--spacing-xl);
+  flex-shrink: 0;
+  min-width: 0;
 }
 
+/* =====================================================
+   ROOM SELECTOR
+   ===================================================== */
 .room-selector {
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xs);
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .room-btn {
-  padding: 8px 10px;
-  background: #333;
-  border: 2px solid #555;
-  border-radius: 6px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-input);
+  border: 2px solid var(--color-border-light);
+  border-radius: var(--radius-md);
   color: #ccc;
-  font-size: 0.85em;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: var(--transition-quick);
   white-space: nowrap;
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
 }
 
 .room-btn:hover {
   background: #444;
-  border-color: #4CAF50;
+  border-color: var(--color-primary);
   color: #fff;
 }
 
 .room-btn.active {
-  background: #4CAF50;
-  border-color: #4CAF50;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
   color: white;
-  font-weight: 600;
+  font-weight: var(--font-weight-bold);
 }
 
 .room-btn .client-count {
   background: rgba(0, 0, 0, 0.3);
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.85em;
-  font-weight: 600;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
 .room-btn.active .client-count {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.manage-btn {
-  padding: 8px 16px;
-  background: #4CAF50;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
-  color: white;
-  font-size: 0.9em;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.manage-btn:hover {
-  background: #45a049;
-  border-color: #45a049;
-}
-
-.manage-btn.active {
-  background: #444;
-  border-color: #555;
-}
-
-.manage-btn.active:hover {
-  background: #555;
-  border-color: #666;
-}
-
+/* =====================================================
+   STATS
+   ===================================================== */
 .stats {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-lg);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .stat {
-  padding: 6px 12px;
-  background: #1a1a1a;
-  border-radius: 4px;
-  font-size: 0.85em;
-  color: #999;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--color-bg-dark);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* =====================================================
+   MAIN CONTENT AREA
+   ===================================================== */
 .app-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  max-width: 1920px;
   width: 100%;
-  margin: 0 auto;
-  padding: 0px;
-  gap: 10px;
-  overflow: visible;
+  padding: var(--layout-gap);
+  gap: var(--layout-gap);
+  overflow: hidden;
   min-height: 0;
 }
 
-/* Audio player always visible at top */
+/* =====================================================
+   TOP ROW: Player (40%) + Playlist (60%) = 50% height
+   ===================================================== */
 .top-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  flex-shrink: 0;
-  max-height: 40%;
-}
-
-/* Main content area - scrollable lists */
-.bottom-row {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  min-height: 350px;
-  max-height: 58%;
-}
-
-.manage-library-row {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 350px;
-  max-height: 58%;
+  grid-template-columns: 1fr 1.5fr;
+  gap: var(--layout-gap);
+  flex: 0 0 var(--layout-row-height-top);
+  min-height: 0;
 }
 
 .player-column,
-.playlist-column,
+.playlist-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* =====================================================
+   BOTTOM ROW: Library (50%) + Folders (50%) = 50% height
+   ===================================================== */
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--layout-gap);
+  flex: 0 0 var(--layout-row-height-bottom);
+  min-height: 0;
+}
+
 .library-column,
 .folders-column {
   display: flex;
   flex-direction: column;
   min-height: 0;
-
+  overflow: hidden;
 }
 
-.library-column{
-  min-height: 400px;
-}
-.folders-column {
-  min-height: 400px;
-}
-
-/* Responsive breakpoints */
-@media (max-width: 1400px) {
-  .top-row,
-  .bottom-row {
-    gap: 12px;
-  }
-  
-  .app-main {
-    padding: 12px;
-  }
+/* =====================================================
+   MANAGE LIBRARY ROW
+   ===================================================== */
+.manage-library-row {
+  flex: 0 0 var(--layout-row-height-bottom);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 1024px) {
-  .app-header h1 {
-    font-size: 1.4em;
-  }
-  
-  .top-row {
-    grid-template-columns: 1fr;
-    max-height: none;
-  }
-  
-  .playlist-column {
-    max-height: 300px;
-    min-height: 250px;
-  }
-  
-  .bottom-row {
-    grid-template-columns: 1fr;
-    min-height: 300px;
-  }
-  
-  .manage-library-row {
-    grid-template-columns: 1fr;
-    min-height: 300px;
-  }
-
-  .library-column,
-  .folders-column {
-    min-height: 300px;
-  }
-}
-
-@media (max-width: 768px) {
-  .app-header {
-    padding: 15px;
-  }
-  
-  .app-header h1 {
-    font-size: 1.2em;
-  }
-  
-  .stats {
-    gap: 5px;
-  }
-  
-  .app-main {
-    padding: 10px;
-    gap: 10px;
-  }
-  
-  .top-row,
-  .bottom-row {
-    gap: 10px;
-  }
-  
-  .playlist-column {
-    min-height: 200px;
-  }
-  
-  .bottom-row {
-    min-height: 250px;
-  }
-  
-  .library-column,
-  .folders-column {
-    min-height: 250px;
-  }
-}
-
+/* =====================================================
+   FOOTER
+   ===================================================== */
 .app-footer {
-  background: #2a2a2a;
-  padding: 15px 20px;
+  background: var(--color-bg-panel);
+  padding: var(--spacing-2xl);
   text-align: center;
-  border-top: 1px solid #444;
-  font-size: 0.9em;
-  color: #666;
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  flex-shrink: 0;
 }
 
 .app-footer p {
   margin: 0;
 }
 
-/* Scrollbar styling for all browsers */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #4CAF50 #1a1a1a;
+/* =====================================================
+   RESPONSIVE: TABLET (1024px and below)
+   ===================================================== */
+@media (max-width: 1024px) {
+  :root {
+    --layout-gap: 8px;
+  }
+
+  .app-header h1 {
+    font-size: 1.2em;
+  }
+
+  .top-row {
+    grid-template-columns: 1fr;
+    flex: 0 0 auto;
+    max-height: 45%;
+  }
+
+  .playlist-column {
+    min-height: 200px;
+  }
+
+  .bottom-row,
+  .manage-library-row {
+    grid-template-columns: 1fr;
+    flex: 1;
+    min-height: 200px;
+  }
 }
 
-/* Webkit browsers (Chrome, Safari, Edge) */
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+/* =====================================================
+   RESPONSIVE: MOBILE (768px and below)
+   ===================================================== */
+@media (max-width: 768px) {
+  :root {
+    --layout-header-height: 60px;
+    --layout-gap: 8px;
+    --spacing-xl: 10px;
+  }
 
-*::-webkit-scrollbar-track {
-  background: #1a1a1a;
-}
+  .top-row {
+    max-height: none;
+  }
 
-*::-webkit-scrollbar-thumb {
-  background: #4CAF50;
-  border-radius: 5px;
-}
+  * {
+    max-width: 100vw;
+    overflow-x: visible;
+  }
 
-*::-webkit-scrollbar-thumb:hover {
-  background: #45a049;
-}
+  /* Exclude audio controls and dialogs from width constraints */
+  .progress-bar,
+  .volume-slider,
+  .dialog-overlay {
+    max-width: none;
+    overflow-x: visible;
+  }
 
-*::-webkit-scrollbar-corner {
-  background: #1a1a1a;
+  #app-content {
+    height: 100vh;
+    width: 100vw;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-direction: column;
+  }
+
+  .app-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+    gap: var(--spacing-md);
+    flex-shrink: 0;
+    width: 100%;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .app-header h1 {
+    display: none;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: row;
+    gap: var(--spacing-md);
+    justify-content: center;
+  }
+
+  .room-selector {
+    width: auto;
+    justify-content: center;
+    flex-wrap: wrap;
+    order: 1;
+  }
+
+  .stats {
+    display: none;
+  }
+
+  .app-main {
+    flex-direction: column;
+    padding: var(--spacing-md);
+    overflow: visible;
+    height: auto;
+    gap: var(--spacing-lg);
+    width: 100%;
+  }
+
+  .top-row {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    gap: var(--spacing-lg);
+    width: 100%;
+  }
+
+  .player-column {
+    flex: 0 0 auto;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .playlist-column {
+    flex: 0 0 auto;
+    min-height: 250px;
+    max-height: 360px;
+    overflow-y: auto;
+    width: 100%;
+  }
+
+  .bottom-row {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    gap: var(--spacing-lg);
+    width: 100%;
+  }
+
+  .library-column {
+    flex: 0 0 auto;
+    min-height: 250px;
+    max-height: 360px;
+    overflow-y: auto;
+    width: 100%;
+  }
+
+  .folders-column {
+    flex: 0 0 auto;
+    min-height: 250px;
+    max-height: 250px;
+    overflow-y: auto;
+    width: 100%;
+  }
+
+  .manage-library-row {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    min-height: auto;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .app-footer {
+    flex-shrink: 0;
+    width: 100%;
+  }
 }
 </style>
