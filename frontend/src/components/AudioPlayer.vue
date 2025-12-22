@@ -535,6 +535,10 @@ export default {
         audioElement.value.load();
       }
       
+      // Clear loop points when a new track starts to prevent cross-track contamination
+      loopStart.value = null;
+      loopEnd.value = null;
+      
       audioElement.value.currentTime = data.startPosition;
       
       // Schedule playback
