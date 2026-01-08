@@ -150,17 +150,22 @@ export default {
     const onAddTrackAndPlay = async (track) => {
       // Add track to current room's playlist and play it
       try {
+        console.log('🎵 onAddTrackAndPlay called with track:', track);
         // Get room playlist collection ID
         const room = rooms.value.find(r => r.id === currentRoomId.value);
         const collectionId = room ? room.playlistCollectionId : `current-playlist-${currentRoomId.value}`;
         
+        console.log('📤 Sending track to addTrackToCollection:', { collectionId, trackId: track.id });
         await api.addTrackToCollection(collectionId, track.id);
         // Refresh playlist to show new track
         if (playlistRef.value) {
           await playlistRef.value.refresh();
+          // Track is added at the end of the playlist, so use its final index
+          const trackIndex = playlistRef.value.tracks.length - 1;
+          await onPlayTrack(track, trackIndex);
+        } else {
+          await onPlayTrack(track);
         }
-        // Play the track
-        await onPlayTrack(track);
       } catch (error) {
         console.error('Failed to add and play track:', error);
       }

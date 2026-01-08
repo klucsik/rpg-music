@@ -29,6 +29,14 @@ const httpServer = createServer(app);
 app.use(cors());
 app.use(express.json());
 
+// Debug logging for POST requests
+app.use((req, res, next) => {
+  if (req.method === 'POST') {
+    logger.info({ method: req.method, url: req.url, body: req.body }, '📬 POST request body');
+  }
+  next();
+});
+
 // Serve test client HTML in development
 if (config.isDevelopment) {
   app.get('/test-client', (req, res) => {

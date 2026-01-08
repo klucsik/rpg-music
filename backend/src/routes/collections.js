@@ -194,9 +194,11 @@ export default () => {
   router.post('/:id/tracks', (req, res) => {
     try {
       const db = getDb();
+      logger.info({ collectionId: req.params.id, body: req.body }, '📌 POST /tracks request received');
       const { track_id, position } = req.body;
 
       if (!track_id) {
+        logger.error({ collectionId: req.params.id, body: req.body }, '❌ track_id is required');
         return res.status(400).json({ error: 'track_id is required' });
       }
 

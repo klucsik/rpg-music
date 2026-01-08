@@ -377,7 +377,7 @@ const loadMore = () => {
 /**
  * Handle double-click to play track
  */
-const handleTrackDoubleClick = (track) => {
+const handleTrackDoubleClick = ({ track, index }) => {
   emit('track-play', track);
 };
 
