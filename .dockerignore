@@ -34,10 +34,8 @@ Thumbs.db
 *.db-shm
 *.db-wal
 
-# Documentation
-IMPLEMENTATION_PLAN.md
-README.md
 
 # Test files
 test-client.html
 backend/test-client.html
+backend/test-music/*
