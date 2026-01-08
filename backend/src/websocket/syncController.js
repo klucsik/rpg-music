@@ -27,9 +27,9 @@ class SyncController {
   /**
    * Play a track in a specific room
    */
-  async playTrack(trackId, roomId = 'room-1', startPosition = 0) {
+  async playTrack(trackId, roomId = 'room-1', startPosition = 0, playlistIndex = null) {
     try {
-      logger.info({ trackId, roomId, startPosition }, 'Playing track in room');
+      logger.info({ trackId, roomId, startPosition, playlistIndex }, 'Playing track in room');
       
       // Get track from database
       const track = trackQueries.getById(trackId);
@@ -42,8 +42,8 @@ class SyncController {
       // Get room state
       const roomState = roomStateManager.getRoomState(roomId);
 
-      // Update session state
-      roomState.playTrack(track, startPosition);
+      // Update session state with playlist index
+      roomState.playTrack(track, startPosition, playlistIndex);
 
       // Calculate scheduled start time (1 second from now for buffer)
       const scheduledStartTime = Date.now() + 1000;
@@ -71,7 +71,8 @@ class SyncController {
         trackId, 
         roomId,
         title: track.title,
-        duration: track.duration
+        duration: track.duration,
+        playlistIndex
       }, 'Track playing in room');
 
       return { success: true, state: roomState.getState() };
@@ -351,14 +352,22 @@ class SyncController {
 
       const currentTrack = roomState.currentTrack;
       if (!currentTrack) {
-        // No current track, nothing to advance from
-        logger.info({ roomId }, 'No current track, stopping playback');
-        this.stop(roomId);
-        return { success: false, reason: 'no_current_track' };
+        // No current track, start from the beginning
+        logger.info({ roomId }, 'No current track, starting from first track');
+        const firstTrack = playlist[0];
+        await this.playTrack(firstTrack.id, roomId, 0, 0);
+        return { success: true };
       }
 
-      // Find current track in playlist
-      const currentIndex = playlist.findIndex(t => t.id === currentTrack.id);
+      // Use the stored playlist index instead of searching by ID
+      // This properly handles duplicate tracks in the playlist
+      let currentIndex = roomState.currentTrackPlaylistIndex;
+      
+      // If index is not set, try to find it (fallback)
+      if (currentIndex === null || currentIndex === undefined) {
+        logger.warn({ roomId }, 'Playlist index not tracked, falling back to ID search');
+        currentIndex = playlist.findIndex(t => t.id === currentTrack.id);
+      }
       
       if (currentIndex === -1) {
         // Current track not in playlist, can't advance
@@ -377,7 +386,8 @@ class SyncController {
           roomId,
           nextTrackTitle: nextTrack.title 
         }, 'Playing next track in sequence');
-        return await this.playTrack(nextTrack.id, roomId);
+        await this.playTrack(nextTrack.id, roomId, 0, currentIndex + 1);
+        return { success: true };
       }
       
       // We're at the end of the playlist
@@ -389,7 +399,8 @@ class SyncController {
           roomId,
           playlistLength: playlist.length 
         }, 'Looping playlist - playing first track');
-        return await this.playTrack(firstTrack.id, roomId);
+        await this.playTrack(firstTrack.id, roomId, 0, 0);
+        return { success: true };
       }
       
       // No loop mode - just stop
@@ -399,6 +410,95 @@ class SyncController {
       
     } catch (error) {
       logger.error({ error, roomId }, 'Failed to play next track');
+      throw error;
+    }
+  }
+
+  /**
+   * Play previous track in playlist for a specific room
+   */
+  async playPreviousTrack(roomId = 'room-1') {
+    try {
+      const { collectionQueries } = await import('../db/database.js');
+      const roomState = roomStateManager.getRoomState(roomId);
+      const room = roomStateManager.getRoom(roomId);
+      
+      // Get current playlist for this room
+      const result = collectionQueries.getCollectionTracks(room.playlistCollectionId, 1000, 0);
+      const playlist = result.tracks || [];
+      
+      logger.info({ 
+        playlistLength: playlist.length, 
+        roomId,
+        currentTrack: roomState.currentTrack?.title 
+      }, 'Playing previous track in room');
+      
+      if (playlist.length === 0) {
+        logger.info({ roomId }, 'Playlist is empty, stopping playback');
+        this.stop(roomId);
+        return { success: false, reason: 'empty_playlist' };
+      }
+
+      const currentTrack = roomState.currentTrack;
+      if (!currentTrack) {
+        // No current track, start from the end
+        logger.info({ roomId }, 'No current track, starting from last track');
+        const lastTrack = playlist[playlist.length - 1];
+        await this.playTrack(lastTrack.id, roomId, 0, playlist.length - 1);
+        return { success: true };
+      }
+
+      // Use the stored playlist index instead of searching by ID
+      // This properly handles duplicate tracks in the playlist
+      let currentIndex = roomState.currentTrackPlaylistIndex;
+      
+      // If index is not set, try to find it (fallback)
+      if (currentIndex === null || currentIndex === undefined) {
+        logger.warn({ roomId }, 'Playlist index not tracked, falling back to ID search');
+        currentIndex = playlist.findIndex(t => t.id === currentTrack.id);
+      }
+      
+      if (currentIndex === -1) {
+        // Current track not in playlist, can't advance
+        logger.info({ roomId }, 'Current track not in playlist, stopping playback');
+        this.stop(roomId);
+        return { success: false, reason: 'track_not_in_playlist' };
+      }
+
+      // Check if there's a previous track
+      if (currentIndex > 0) {
+        // Play previous track
+        const prevTrack = playlist[currentIndex - 1];
+        logger.info({ 
+          currentIndex, 
+          prevIndex: currentIndex - 1, 
+          roomId,
+          prevTrackTitle: prevTrack.title 
+        }, 'Playing previous track in sequence');
+        await this.playTrack(prevTrack.id, roomId, 0, currentIndex - 1);
+        return { success: true };
+      }
+      
+      // We're at the beginning of the playlist
+      if (roomState.loopPlaylist && playlist.length > 0) {
+        // Loop back to the last track
+        const lastTrack = playlist[playlist.length - 1];
+        logger.info({ 
+          lastTrackTitle: lastTrack.title,
+          roomId,
+          playlistLength: playlist.length 
+        }, 'Looping playlist - playing last track');
+        await this.playTrack(lastTrack.id, roomId, 0, playlist.length - 1);
+        return { success: true };
+      }
+      
+      // No loop mode - just stop
+      logger.info({ roomId }, 'Beginning of playlist reached, stopping playback');
+      this.stop(roomId);
+      return { success: false, reason: 'beginning_of_playlist' };
+      
+    } catch (error) {
+      logger.error({ error, roomId }, 'Failed to play previous track');
       throw error;
     }
   }
@@ -492,7 +592,8 @@ class SyncController {
       try {
         // If custom loop points are set, start at loopStart, otherwise start at 0
         const startPosition = roomState.loopStart !== null ? roomState.loopStart : 0;
-        await this.playTrack(roomState.currentTrack.id, roomId, startPosition);
+        // Pass the current playlist index when repeating
+        await this.playTrack(roomState.currentTrack.id, roomId, startPosition, roomState.currentTrackPlaylistIndex);
       } catch (error) {
         logger.error({ error, clientId, roomId }, 'Failed to replay track in repeat mode');
       }

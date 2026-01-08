@@ -7,6 +7,7 @@
 export class SessionState {
   constructor() {
     this.currentTrack = null;
+    this.currentTrackPlaylistIndex = null; // Track position in playlist, not just track ID
     this.playbackState = 'stopped'; // 'playing', 'paused', 'stopped'
     this.position = 0; // Current position in seconds
     this.lastUpdateTime = null; // Server timestamp of last state change
@@ -20,8 +21,9 @@ export class SessionState {
   /**
    * Start playing a track
    */
-  playTrack(track, startPosition = 0) {
+  playTrack(track, startPosition = 0, playlistIndex = null) {
     this.currentTrack = track;
+    this.currentTrackPlaylistIndex = playlistIndex;
     this.playbackState = 'playing';
     this.position = startPosition;
     this.lastUpdateTime = Date.now();
@@ -71,6 +73,7 @@ export class SessionState {
     this.position = 0;
     this.lastUpdateTime = Date.now();
     this.currentTrack = null; // Clear track to prevent auto-restart
+    this.currentTrackPlaylistIndex = null; // Clear playlist index
     
     return this.getState();
   }

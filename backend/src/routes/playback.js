@@ -7,11 +7,11 @@ const router = express.Router();
 /**
  * Play a track
  * POST /api/playback/play
- * Body: { trackId: string, startPosition?: number }
+ * Body: { trackId: string, startPosition?: number, playlistIndex?: number }
  */
 router.post('/play', async (req, res) => {
   try {
-    const { trackId, startPosition = 0, roomId = 'room-1' } = req.body;
+    const { trackId, startPosition = 0, roomId = 'room-1', playlistIndex = null } = req.body;
 
     if (!trackId) {
       return res.status(400).json({
@@ -20,7 +20,7 @@ router.post('/play', async (req, res) => {
     }
 
     const syncController = getSyncController();
-    const result = await syncController.playTrack(trackId, roomId, startPosition);
+    const result = await syncController.playTrack(trackId, roomId, startPosition, playlistIndex);
 
     res.json(result);
   } catch (error) {
@@ -237,6 +237,46 @@ router.delete('/loop-points', (req, res) => {
     logger.error({ error }, 'Failed to clear loop points');
     res.status(500).json({
       error: 'Failed to clear loop points',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Play next track in playlist
+ * POST /api/playback/next
+ */
+router.post('/next', async (req, res) => {
+  try {
+    const { roomId = 'room-1' } = req.body;
+    const syncController = getSyncController();
+    const result = await syncController.playNextTrack(roomId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to play next track');
+    res.status(500).json({
+      error: 'Failed to play next track',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Play previous track in playlist
+ * POST /api/playback/previous
+ */
+router.post('/previous', async (req, res) => {
+  try {
+    const { roomId = 'room-1' } = req.body;
+    const syncController = getSyncController();
+    const result = await syncController.playPreviousTrack(roomId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error({ error }, 'Failed to play previous track');
+    res.status(500).json({
+      error: 'Failed to play previous track',
       message: error.message,
     });
   }

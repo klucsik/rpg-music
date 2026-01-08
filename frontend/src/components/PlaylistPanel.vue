@@ -247,8 +247,9 @@ onUnmounted(() => {
 /**
  * Handle double-click to play track
  */
-const handleTrackDoubleClick = (track) => {
-  emit('track-play', track);
+const handleTrackDoubleClick = (data) => {
+  // data contains { track, index }
+  emit('track-play', data.track, data.index);
 };
 
 /**
@@ -381,9 +382,10 @@ watch(showSaveDialog, (show) => {
   }
 });
 
-// Expose refresh method
+// Expose public methods and data
 defineExpose({
-  refresh
+  refresh,
+  tracks
 });
 </script>
 

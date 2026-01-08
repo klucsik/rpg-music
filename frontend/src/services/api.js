@@ -139,10 +139,10 @@ class ApiClient {
   }
 
   // Playback
-  async playTrack(trackId, startPosition = 0, roomId = 'room-1') {
+  async playTrack(trackId, startPosition = 0, roomId = 'room-1', playlistIndex = null) {
     return this.request('/api/playback/play', {
       method: 'POST',
-      body: JSON.stringify({ trackId, startPosition, roomId }),
+      body: JSON.stringify({ trackId, startPosition, roomId, playlistIndex }),
     });
   }
 
@@ -162,6 +162,20 @@ class ApiClient {
 
   async stop(roomId = 'room-1') {
     return this.request('/api/playback/stop', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
+  }
+
+  async next(roomId = 'room-1') {
+    return this.request('/api/playback/next', { 
+      method: 'POST',
+      body: JSON.stringify({ roomId }),
+    });
+  }
+
+  async previous(roomId = 'room-1') {
+    return this.request('/api/playback/previous', { 
       method: 'POST',
       body: JSON.stringify({ roomId }),
     });

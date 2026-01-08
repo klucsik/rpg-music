@@ -130,9 +130,15 @@ export default {
       }
     };
 
-    const onPlayTrack = async (track) => {
+    const onPlayTrack = async (track, playlistIndex = null) => {
       try {
-        await api.playTrack(track.id, 0, currentRoomId.value);
+        // If index not provided, calculate it
+        if (playlistIndex === null && playlistRef.value && playlistRef.value.tracks) {
+          playlistIndex = playlistRef.value.tracks.findIndex(t => t.id === track.id);
+          playlistIndex = playlistIndex >= 0 ? playlistIndex : null;
+        }
+        
+        await api.playTrack(track.id, 0, currentRoomId.value, playlistIndex);
         currentTrackId.value = track.id;
         currentTrack.value = track;
       } catch (error) {
@@ -160,14 +166,22 @@ export default {
       }
     };
 
-    const playNextTrack = () => {
-      // TODO: Implement with new playlist structure
-      console.log('Next track - to be implemented');
+    const playNextTrack = async () => {
+      try {
+        await api.next(currentRoomId.value);
+        console.log('Next track request sent to server');
+      } catch (error) {
+        console.error('Failed to play next track:', error);
+      }
     };
 
-    const playPreviousTrack = () => {
-      // TODO: Implement with new playlist structure
-      console.log('Previous track - to be implemented');
+    const playPreviousTrack = async () => {
+      try {
+        await api.previous(currentRoomId.value);
+        console.log('Previous track request sent to server');
+      } catch (error) {
+        console.error('Failed to play previous track:', error);
+      }
     };
 
     const handleStateSync = (data) => {
@@ -225,9 +239,19 @@ export default {
     };
 
     // Computed properties for next/previous track availability
-    // TODO: Implement properly with new collection structure
-    const hasNext = computed(() => false);
-    const hasPrevious = computed(() => false);
+    const hasNext = computed(() => {
+      if (!playlistRef.value || !playlistRef.value.tracks) return false;
+      if (!currentTrackId.value) return playlistRef.value.tracks.length > 0;
+      const currentIndex = playlistRef.value.tracks.findIndex(t => t.id === currentTrackId.value);
+      return currentIndex >= 0 && currentIndex < playlistRef.value.tracks.length - 1;
+    });
+    
+    const hasPrevious = computed(() => {
+      if (!playlistRef.value || !playlistRef.value.tracks) return false;
+      if (!currentTrackId.value) return false;
+      const currentIndex = playlistRef.value.tracks.findIndex(t => t.id === currentTrackId.value);
+      return currentIndex > 0;
+    });
 
     /**
      * Toggle manage library view

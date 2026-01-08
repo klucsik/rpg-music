@@ -51,7 +51,7 @@
         @dragleave="handleDragLeave"
         @drop="handleDrop(index, $event)"
         @click="handleClick(track)"
-        @dblclick="handleDoubleClick(track)"
+        @dblclick="handleDoubleClick(track, index)"
       >
         <!-- Drag Handle -->
         <div v-if="allowReorder" class="drag-handle">
@@ -207,9 +207,9 @@ const handleClick = (track) => {
 /**
  * Handle double click on track
  */
-const handleDoubleClick = (track) => {
+const handleDoubleClick = (track, index) => {
   if (props.enableDoubleClick) {
-    emit('track-dblclick', track);
+    emit('track-dblclick', { track, index });
   }
 };
 
