@@ -104,7 +104,9 @@ export default {
   setup() {
     const currentTrackId = ref(null);
     const currentTrack = ref(null);
-    const currentRoomId = ref('room-1');
+    // Load saved room from localStorage or default to 'room-1'
+    const savedRoomId = localStorage.getItem('rpg-music-room-id') || 'room-1';
+    const currentRoomId = ref(savedRoomId);
     const rooms = ref([]);
     const libraryRef = ref(null);
     const folderManagerRef = ref(null);
@@ -228,11 +230,20 @@ export default {
     const handleRoomJoined = (data) => {
       console.log('Room joined:', data);
       currentRoomId.value = data.roomId;
+      // Save room to localStorage
+      localStorage.setItem('rpg-music-room-id', data.roomId);
+      console.log('Room saved to localStorage:', data.roomId);
     };
 
     const handleRoomsInfo = (data) => {
       console.log('Rooms info updated:', data);
       rooms.value = data;
+    };
+
+    const handleConnected = () => {
+      console.log('WebSocket connected, joining saved room:', currentRoomId.value);
+      // Join the saved room when connection is established
+      websocket.joinRoom(currentRoomId.value);
     };
 
     const switchRoom = (roomId) => {
@@ -302,11 +313,18 @@ export default {
       statsInterval = setInterval(loadStats, 10000); // Every 10 seconds
       
       // Listen to WebSocket events for current track updates
+      websocket.on('connected', handleConnected);
       websocket.on('state_sync', handleStateSync);
       websocket.on('play_track', handlePlayTrack);
       websocket.on('stop', handleStop);
       websocket.on('room_joined', handleRoomJoined);
       websocket.on('rooms_info', handleRoomsInfo);
+      
+      // If websocket is already connected, join room immediately
+      if (websocket.isConnected()) {
+        websocket.joinRoom(currentRoomId.value);
+      }
+      // Otherwise, it will join when 'connected' event fires
     });
 
     onUnmounted(() => {
@@ -314,6 +332,7 @@ export default {
         clearInterval(statsInterval);
       }
       
+      websocket.off('connected', handleConnected);
       websocket.off('state_sync', handleStateSync);
       websocket.off('play_track', handlePlayTrack);
       websocket.off('stop', handleStop);
